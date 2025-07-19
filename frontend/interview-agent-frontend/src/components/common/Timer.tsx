@@ -1,5 +1,5 @@
 // components/common/Timer.tsx
-import React from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTimer } from '../../hooks/useTimer';
@@ -11,12 +11,12 @@ interface TimerProps {
   className?: string;
 }
 
-export const Timer: React.FC<TimerProps> = ({
+const Timer = ({
   initialTime = 45 * 60, // 45 minutes default
   onTimeUp,
   autoStart = false,
   className = '',
-}) => {
+}: TimerProps) => {
   const {
     timeRemaining,
     isRunning,
@@ -29,14 +29,14 @@ export const Timer: React.FC<TimerProps> = ({
   } = useTimer(initialTime);
 
   // Call onTimeUp when timer finishes
-  React.useEffect(() => {
+  useEffect(() => {
     if (isFinished && onTimeUp) {
       onTimeUp();
     }
   }, [isFinished, onTimeUp]);
 
   // Auto start if specified
-  React.useEffect(() => {
+  useEffect(() => {
     if (autoStart && !isRunning && timeRemaining > 0) {
       start();
     }
@@ -147,3 +147,5 @@ export const Timer: React.FC<TimerProps> = ({
     </Card>
   );
 };
+
+export default Timer;
