@@ -89,19 +89,42 @@ const InterviewPage = () => {
     // Send submission via WebSocket
     sendTextMessage(`I'm submitting my final solution in ${language}. Please review it and let me know what you think.`);
   }, [updateCode, sendTextMessage]);
+  const generateTranscript = (conversation) => {
+    return conversation
+      .map(msg => `[${new Date(msg.timestamp).toLocaleTimeString()}] ${msg.role === 'assistant' ? 'AI' : 'Candidate'}: ${msg.content}`)
+      .join('\n\n');
+  };
+
 
   const handleEndInterview = useCallback(() => {
     endSpeechInterview();
     endInterview();
+    
+    // Format the conversation for AI evaluation
+    const formattedConversation = [...state.conversation, ...speechMessages]
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .map(msg => ({
+        role: msg.sender === 'ai' ? 'assistant' : 'user',
+        content: msg.message,
+        timestamp: new Date(msg.timestamp).toISOString(),
+        source: msg.source || 'text',
+        type: msg.type || 'message'
+      }));
+    
+    // Navigate to results with all context
     navigate('/results', { 
       state: { 
-        problem, 
+        problem,
         code: state.userCode,
-        conversation: [...state.conversation, ...speechMessages]
+        conversation: formattedConversation,
+        duration: state.settings.timeLimit * 60, // in seconds
+        metrics: {
+          totalMessages: formattedConversation.length,
+          questionCount: formattedConversation.filter(m => m.type === 'question' && m.role === 'assistant').length,
+        }
       } 
     });
   }, [endSpeechInterview, endInterview, navigate, problem, state.userCode, state.conversation, speechMessages]);
-
   const handleTimeUp = useCallback(() => {
     sendTextMessage("Time's up! Let me wrap up my solution.");
     
@@ -399,7 +422,7 @@ const InterviewPage = () => {
                         type="text"
                         value={currentMessage}
                         onChange={(e) => setCurrentMessage(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                         placeholder="Type a message..."
                         className="flex-1 bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                       />

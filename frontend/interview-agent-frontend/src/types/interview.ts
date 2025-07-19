@@ -23,6 +23,8 @@ export interface ConversationMessage {
   message: string;
   timestamp: Date;
   type?: 'question' | 'hint' | 'clarification' | 'feedback';
+  source?: string;
+
 }
 
 export interface InterviewState {

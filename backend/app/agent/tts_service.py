@@ -30,6 +30,9 @@ def _play_audio_thread(text: str, voice: str):
     
     try:
         _is_playing = True
+        if _pipeline is None:
+            logger.error("TTS pipeline is not initialized")
+            return
         generator = _pipeline(text, voice=voice)
         
         for i, (gs, ps, audio) in enumerate(generator):
