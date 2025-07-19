@@ -47,3 +47,11 @@ def speak(text: str, voice: str = 'af_heart') -> bool:
     except Exception as e:
         logger.error(f"Error generating/playing audio: {e}")
         return False
+
+def stop_audio():
+    """Stop any currently playing audio immediately"""
+    try:
+        sd.stop()
+        logger.info("Audio playback stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping sounddevice: {e}")

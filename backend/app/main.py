@@ -14,7 +14,7 @@ from datetime import datetime
 from app.db.database import get_db
 from app.db.models.problems import Problem
 from app.agent.agent import InterviewPrepAgent
-from app.agent.tts_service import initialize_tts, speak
+from app.agent.tts_service import initialize_tts, speak, stop_audio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Global instances
-interview_agent: Optional[InterviewPrepAgent] = None
+interview_agent = InterviewPrepAgent()
 
 @app.on_event("startup")
 async def startup_event():
@@ -47,7 +47,6 @@ async def startup_event():
     try:
         initialize_tts()
         logger.info("TTS service initialized successfully")
-        interview_agent = InterviewPrepAgent()
         logger.info("InterviewPrepAgent initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize TTS and InterviewPrepAgent: {e}")
@@ -136,6 +135,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
 async def handle_speech_message(message_data: dict, client_id: str):
     """Handle speech-to-text messages"""
+    stop_audio()
     transcript = message_data.get("data", "")
     is_final = message_data.get("isFinal", False)
     
@@ -366,3 +366,7 @@ async def get_problems(
     except Exception as e:
         logger.error(f"Error fetching problems: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/end")
+async def end():
+    stop_audio()
