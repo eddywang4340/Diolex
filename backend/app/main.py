@@ -1,10 +1,14 @@
 # backend/main.py
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware # Import CORS middleware
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from typing import Optional, List, Dict, Any
 import random
 import logging
+
+from app.db.database import get_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +47,8 @@ async def get_greeting():
 @app.get("/api/problems/random")
 async def get_random_problem(
     difficulty: Optional[str] = Query(None, description="Filter by difficulty: Easy, Medium, or Hard"),
-    company: Optional[str] = Query(None, description="Filter by company (checks if company is in the companies array)")
+    company: Optional[str] = Query(None, description="Filter by company (checks if company is in the companies array)"),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get a random problem based on filters.
@@ -56,55 +61,60 @@ async def get_random_problem(
         A random problem matching the filters or error message if none found
     """
     try:
-        async with db.get_connection() as conn:
-            # Build the query dynamically based on filters
-            query = "SELECT * FROM problems WHERE 1=1"
-            params = []
-            param_count = 0
-            
+        # Validate difficulty if provided
+        valid_difficulties = ["Easy", "Medium", "Hard"]
+        if difficulty and difficulty not in valid_difficulties:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid difficulty. Must be one of: {', '.join(valid_difficulties)}"
+            )
+        
+        # Build the query dynamically based on filters
+        query = "SELECT * FROM problems WHERE 1=1"
+        params = {}
+        
+        if difficulty:
+            query += " AND difficulty = :difficulty"
+            params["difficulty"] = difficulty
+        
+        if company:
+            # Use ANY to check if company exists in the companies array
+            query += " AND :company = ANY(companies)"
+            params["company"] = company
+        
+        # Execute query using SQLAlchemy
+        result = await db.execute(text(query), params)
+        rows = result.fetchall()
+        
+        if not rows:
+            # No problems found matching the criteria
+            filter_info = []
             if difficulty:
-                param_count += 1
-                query += f" AND difficulty = ${param_count}"
-                params.append(difficulty)
-            
+                filter_info.append(f"difficulty: {difficulty}")
             if company:
-                param_count += 1
-                # Use ANY to check if company exists in the companies array
-                query += f" AND ${param_count} = ANY(companies)"
-                params.append(company)
+                filter_info.append(f"company: {company}")
             
-            # Execute query
-            rows = await conn.fetch(query, *params)
-            
-            if not rows:
-                # No problems found matching the criteria
-                filter_info = []
-                if difficulty:
-                    filter_info.append(f"difficulty: {difficulty}")
-                if company:
-                    filter_info.append(f"company: {company}")
-                
-                filter_str = " and ".join(filter_info) if filter_info else "no filters"
-                
-                return {
-                    "success": False,
-                    "message": f"No problems found matching criteria ({filter_str})",
-                    "data": None
-                }
-            
-            # Select a random problem from the results
-            random_problem = random.choice(rows)
-            
-            # Convert row to dictionary
-            problem_dict = dict(random_problem)
+            filter_str = " and ".join(filter_info) if filter_info else "no filters"
             
             return {
-                "success": True,
-                "message": f"Found {len(rows)} matching problem(s), returning random selection",
-                "data": problem_dict,
-                "total_matches": len(rows)
+                "success": False,
+                "message": f"No problems found matching criteria ({filter_str})",
+                "data": None
             }
-            
+        
+        # Select a random problem from the results
+        random_problem = random.choice(rows)
+        
+        # Convert row to dictionary
+        problem_dict = dict(random_problem._mapping)
+        
+        return {
+            "success": True,
+            "message": f"Found {len(rows)} matching problem(s), returning random selection",
+            "data": problem_dict,
+            "total_matches": len(rows)
+        }
+        
     except HTTPException:
         raise
     except Exception as e:
