@@ -23,3 +23,20 @@ dist-ssr
 *.sln
 *.sw?
 .vite/
+
+# Virtual Environments
+.venv/
+venv/
+.env/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv.*
+venv.*
+
+# Python virtual environment directories (common names)
+virtualenv/
+.virtualenv/
+pyenv/
+.pyenv/
