@@ -13,6 +13,8 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.db.models.problems import Problem
+from app.agent.agent import InterviewPrepAgent
+from app.agent.tts_service import initialize_tts, speak
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +37,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global instances
+interview_agent: Optional[InterviewPrepAgent] = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize TTS on startup"""
+    try:
+        initialize_tts()
+        logger.info("TTS service initialized successfully")
+        interview_agent = InterviewPrepAgent()
+        logger.info("InterviewPrepAgent initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize TTS and InterviewPrepAgent: {e}")
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -140,7 +156,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
         await asyncio.sleep(1)
         
         # Generate AI response
-        ai_response = random.choice(AI_RESPONSES)
+        ai_response = interview_agent.send_message(user_message["message"])
         ai_message = {
             "type": "ai_message", 
             "message": ai_response,
@@ -148,6 +164,9 @@ async def handle_speech_message(message_data: dict, client_id: str):
             "messageType": "response"
         }
         await manager.send_personal_message(ai_message, client_id)
+
+        # Speak with TTS
+        speak(ai_response)
         
     elif not is_final:
         # Send interim transcript for real-time display
