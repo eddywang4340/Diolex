@@ -38,8 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global instances
-interview_agent: Optional[InterviewPrepAgent] = None
+# # Global instances
+interview_agent = InterviewPrepAgent()
 
 @app.on_event("startup")
 async def startup_event():
@@ -47,7 +47,6 @@ async def startup_event():
     try:
         initialize_tts()
         logger.info("TTS service initialized successfully")
-        interview_agent = InterviewPrepAgent()
         logger.info("InterviewPrepAgent initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize TTS and InterviewPrepAgent: {e}")
