@@ -12,6 +12,12 @@ import { cpp } from '@codemirror/lang-cpp';
 import { oneDark } from '@codemirror/theme-one-dark';
 
 // Piston API types
+interface PistonRuntime {
+  language: string;
+  version: string;
+  aliases: string[];
+}
+
 interface PistonExecuteResponse {
   language: string;
   version: string;
