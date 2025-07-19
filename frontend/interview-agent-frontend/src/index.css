@@ -1,6 +1,20 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Global dark theme setup */
+html, body {
+  background-color: rgb(2 6 23); /* slate-950 */
+  color: white;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: rgb(2 6 23);
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

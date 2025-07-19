@@ -119,7 +119,7 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-slate-950">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -147,7 +147,7 @@ const HomePage = () => {
 
           {/* Right Panel - Welcome Content */}
           <div className="lg:col-span-2">
-            <Card className="bg-slate-800/50 border-slate-700 h-full">
+            <Card className="bg-slate-900/50 border-slate-800 h-full">
               <CardContent className="p-8">
                 <div className="space-y-8">
                   {/* Welcome Message */}
@@ -163,7 +163,7 @@ const HomePage = () => {
 
                   {/* Features Grid */}
                   <div className="grid md:grid-cols-2 gap-6">
-                    <div className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+                    <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
                           <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +177,7 @@ const HomePage = () => {
                       </p>
                     </div>
 
-                    <div className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+                    <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
                           <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,7 +191,7 @@ const HomePage = () => {
                       </p>
                     </div>
 
-                    <div className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+                    <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
                           <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +205,7 @@ const HomePage = () => {
                       </p>
                     </div>
 
-                    <div className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+                    <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
                           <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

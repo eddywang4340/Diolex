@@ -4,6 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import CodeMirror from '@uiw/react-codemirror';
+import { python } from '@codemirror/lang-python';
+import { javascript } from '@codemirror/lang-javascript';
+import { java } from '@codemirror/lang-java';
+import { cpp } from '@codemirror/lang-cpp';
+import { oneDark } from '@codemirror/theme-one-dark';
 
 interface CodeEditorProps {
   value: string;
@@ -20,6 +26,7 @@ interface LanguageConfig {
   label: string;
   defaultCode: string;
   extension: string;
+  codemirrorLang: any;
 }
 
 const languageConfigs: Record<ProgrammingLanguage, LanguageConfig> = {
@@ -33,7 +40,8 @@ const languageConfigs: Record<ProgrammingLanguage, LanguageConfig> = {
 if __name__ == "__main__":
     result = solution()
     print(result)`,
-    extension: 'py'
+    extension: 'py',
+    codemirrorLang: python()
   },
   javascript: {
     label: 'JavaScript',
@@ -44,7 +52,8 @@ if __name__ == "__main__":
 
 // Test your solution
 console.log(solution());`,
-    extension: 'js'
+    extension: 'js',
+    codemirrorLang: javascript()
   },
   typescript: {
     label: 'TypeScript',
@@ -55,7 +64,8 @@ console.log(solution());`,
 
 // Test your solution
 console.log(solution());`,
-    extension: 'ts'
+    extension: 'ts',
+    codemirrorLang: javascript({ typescript: true })
   },
   java: {
     label: 'Java',
@@ -71,7 +81,8 @@ console.log(solution());`,
         return null;
     }
 }`,
-    extension: 'java'
+    extension: 'java',
+    codemirrorLang: java()
   },
   cpp: {
     label: 'C++',
@@ -90,7 +101,8 @@ int main() {
     // Test your solution
     return 0;
 }`,
-    extension: 'cpp'
+    extension: 'cpp',
+    codemirrorLang: cpp()
   },
   go: {
     label: 'Go',
@@ -107,7 +119,8 @@ func main() {
     result := solution()
     fmt.Println(result)
 }`,
-    extension: 'go'
+    extension: 'go',
+    codemirrorLang: javascript() // Use JS highlighting for Go as fallback
   }
 };
 
@@ -120,7 +133,6 @@ const CodeEditor = ({
   disabled = false,
 }: CodeEditorProps) => {
   const [selectedLanguage, setSelectedLanguage] = useState<ProgrammingLanguage>('python');
-  const [fontSize, setFontSize] = useState(14);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string>('');
   const [isOutputVisible, setIsOutputVisible] = useState(false);
@@ -164,10 +176,6 @@ const CodeEditor = ({
     onSubmit(value, selectedLanguage);
   }, [onSubmit, value, selectedLanguage]);
 
-  const handleFontSizeChange = useCallback((delta: number) => {
-    setFontSize(prev => Math.max(10, Math.min(24, prev + delta)));
-  }, []);
-
   const lineCount = value.split('\n').length;
 
   return (
@@ -176,46 +184,23 @@ const CodeEditor = ({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               Code Editor
             </CardTitle>
             
             <div className="flex items-center gap-3">
-              {/* Font Size Controls */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFontSizeChange(-2)}
-                  className="h-8 w-8 p-0 border-slate-600 text-slate-300 hover:bg-slate-700"
-                  disabled={fontSize <= 10}
-                >
-                  <span className="text-lg font-bold">−</span>
-                </Button>
-                <span className="text-xs text-slate-400 w-8 text-center">{fontSize}px</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleFontSizeChange(2)}
-                  className="h-8 w-8 p-0 border-slate-600 text-slate-300 hover:bg-slate-700"
-                  disabled={fontSize >= 24}
-                >
-                  <span className="text-lg font-bold">+</span>
-                </Button>
-              </div>
-
               {/* Language Selector */}
               <Select
                 value={selectedLanguage}
                 onValueChange={handleLanguageChange}
                 disabled={disabled}
               >
-                <SelectTrigger className="w-32 h-8 bg-slate-900/50 border-slate-600 text-white">
+                <SelectTrigger className="w-32 h-8 bg-slate-900 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-600">
+                <SelectContent className="bg-slate-900 border-slate-600">
                   {Object.entries(languageConfigs).map(([key, config]) => (
                     <SelectItem
                       key={key}
@@ -232,28 +217,31 @@ const CodeEditor = ({
         </CardHeader>
 
         <CardContent className="p-0">
-          {/* Editor Container */}
+          {/* CodeMirror Editor */}
           <div className="relative">
-            {/* Line Numbers */}
-            <div className="absolute left-0 top-0 w-12 bg-slate-900/30 border-r border-slate-600 h-full overflow-hidden">
-              <div className="p-4 font-mono text-xs text-slate-500 leading-relaxed">
-                {Array.from({ length: lineCount }, (_, i) => (
-                  <div key={i + 1} className="h-6 flex items-center">
-                    {i + 1}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Code Textarea */}
-            <textarea
+            <CodeMirror
               value={value}
-              onChange={(e) => onChange(e.target.value)}
-              disabled={disabled}
-              className="w-full h-96 bg-slate-900/30 text-white font-mono resize-none border-0 outline-none pl-16 pr-4 py-4 leading-relaxed"
-              style={{ fontSize: `${fontSize}px` }}
-              placeholder="Start coding here..."
-              spellCheck={false}
+              onChange={(val) => onChange(val)}
+              theme={oneDark}
+              extensions={[languageConfigs[selectedLanguage].codemirrorLang]}
+              editable={!disabled}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                dropCursor: false,
+                allowMultipleSelections: false,
+                indentOnInput: true,
+                bracketMatching: true,
+                closeBrackets: true,
+                autocompletion: true,
+                highlightSelectionMatches: false,
+              }}
+              className="text-sm"
+              style={{
+                fontSize: '14px',
+                minHeight: '400px',
+                backgroundColor: 'rgb(15 23 42 / 0.3)',
+              }}
             />
 
             {/* Floating Action Buttons */}
@@ -276,7 +264,6 @@ const CodeEditor = ({
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                       </svg>
                       Run
-
                     </div>
                   )}
                 </Button>
@@ -287,7 +274,7 @@ const CodeEditor = ({
                   onClick={handleSubmitCode}
                   disabled={disabled || !value.trim()}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
                 >
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,7 +291,7 @@ const CodeEditor = ({
 
       {/* Output Panel */}
       {isOutputVisible && (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-slate-900/50 border-slate-700">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
@@ -326,7 +313,7 @@ const CodeEditor = ({
             </div>
           </CardHeader>
           <CardContent>
-            <pre className="bg-slate-900/50 p-4 rounded-lg text-sm text-slate-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <pre className="bg-slate-950/50 p-4 rounded-lg text-sm text-slate-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {output || 'No output yet. Click "Run" to execute your code.'}
             </pre>
           </CardContent>
@@ -336,14 +323,11 @@ const CodeEditor = ({
       {/* Editor Stats */}
       <div className="flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="bg-slate-700 text-slate-300">
+          <Badge variant="secondary" className="bg-slate-800 text-slate-300">
             {languageConfigs[selectedLanguage].label}
           </Badge>
           <span>{lineCount} lines</span>
           <span>{value.length} characters</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span>Font: {fontSize}px</span>
         </div>
       </div>
     </div>

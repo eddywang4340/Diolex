@@ -161,42 +161,44 @@ const InterviewPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Header */}
-      <div className="border-b border-slate-700 bg-slate-800/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* Compact Header */}
+      <div className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => navigate('/')}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 ← Back
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-white">{problem.title}</h1>
-                <div className="flex items-center gap-2 mt-1">
+                <h1 className="text-lg font-bold text-white">{problem.title}</h1>
+                <div className="flex items-center gap-2">
                   <Badge className={getDifficultyColor(problem.difficulty)}>
                     {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
                   </Badge>
-                  <Badge variant="secondary" className="bg-slate-700 text-slate-300">
+                  <Badge variant="secondary" className="bg-slate-800 text-slate-400 text-xs">
                     {problem.type}
                   </Badge>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Timer
                 initialTime={settings?.timeLimit * 60 || 45 * 60}
                 onTimeUp={handleTimeUp}
                 autoStart={true}
-                className="w-48"
+                className=""
               />
               <Button
                 onClick={handleEndInterview}
                 variant="destructive"
+                size="sm"
                 className="bg-red-600 hover:bg-red-700"
               >
                 End Interview
@@ -206,26 +208,26 @@ const InterviewPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex gap-4 h-[calc(100vh-140px)]">
           {/* Left Panel - Problem Description */}
-          <div className="lg:col-span-1 space-y-4">
-            <Card className="bg-slate-800/50 border-slate-700 h-full">
-              <CardHeader>
-                <CardTitle className="text-lg text-white">Problem Description</CardTitle>
+          <div className="w-1/3 flex flex-col">
+            <Card className="bg-slate-900/50 border-slate-800 h-full flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-white">Problem Description</CardTitle>
               </CardHeader>
-              <CardContent className="overflow-y-auto">
+              <CardContent className="flex-1 overflow-y-auto">
                 <div className="prose prose-invert max-w-none">
-                  <p className="text-slate-300 leading-relaxed mb-4">
+                  <p className="text-slate-300 leading-relaxed mb-4 text-sm">
                     {problem.description}
                   </p>
                   
                   {problem.examples && problem.examples.length > 0 && (
-                    <div className="space-y-4">
-                      <h4 className="text-white font-semibold">Examples:</h4>
+                    <div className="space-y-3">
+                      <h4 className="text-white font-semibold text-sm">Examples:</h4>
                       {problem.examples.map((example, index) => (
-                        <div key={index} className="bg-slate-900/50 p-3 rounded-lg">
-                          <pre className="text-sm text-slate-300 whitespace-pre-wrap">
+                        <div key={index} className="bg-slate-950/50 p-3 rounded-lg">
+                          <pre className="text-xs text-slate-300 whitespace-pre-wrap">
                             {example}
                           </pre>
                         </div>
@@ -234,9 +236,9 @@ const InterviewPage = () => {
                   )}
 
                   {problem.constraints && problem.constraints.length > 0 && (
-                    <div className="mt-6">
-                      <h4 className="text-white font-semibold mb-2">Constraints:</h4>
-                      <ul className="text-slate-300 text-sm space-y-1">
+                    <div className="mt-4">
+                      <h4 className="text-white font-semibold mb-2 text-sm">Constraints:</h4>
+                      <ul className="text-slate-300 text-xs space-y-1">
                         {problem.constraints.map((constraint, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <span className="text-slate-500 mt-1">•</span>
@@ -252,7 +254,7 @@ const InterviewPage = () => {
           </div>
 
           {/* Center Panel - Code Editor */}
-          <div className="lg:col-span-1">
+          <div className="flex-1">
             <CodeEditor
               value={state.userCode}
               onChange={updateCode}
@@ -263,29 +265,28 @@ const InterviewPage = () => {
           </div>
 
           {/* Right Panel - Conversation */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className="w-1/3 flex flex-col gap-4">
             {/* Chat History */}
-            <Card className="bg-slate-800/50 border-slate-700 flex-1">
+            <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-white flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                <CardTitle className="text-base text-white flex items-center gap-2">
+                  <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-xs font-bold">AI</span>
                   </div>
-                  Interview Conversation
+                  Interview Chat
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col h-80">
+              <CardContent className="flex-1 flex flex-col">
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                <div className="flex-1 overflow-y-auto space-y-2 mb-3">
                   {/* Initial AI Message */}
-                  <div className="flex gap-3">
-                    <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
+                  <div className="flex gap-2">
+                    <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
                       <span className="text-xs font-bold">AI</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-slate-300">
-                        Hello! I'm your AI interviewer today. I've given you the "{problem.title}" problem to solve. 
-                        Take a moment to read through it, and feel free to ask me any clarifying questions about the requirements.
+                      <p className="text-xs text-slate-300">
+                        Hello! I've given you the "{problem.title}" problem. Take a moment to read it and ask any clarifying questions.
                       </p>
                       <span className="text-xs text-slate-500">Just now</span>
                     </div>
@@ -293,18 +294,18 @@ const InterviewPage = () => {
 
                   {/* Conversation Messages */}
                   {state.conversation.map((message) => (
-                    <div key={message.id} className="flex gap-3">
-                      <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${
+                    <div key={message.id} className="flex gap-2">
+                      <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
                         message.sender === 'ai' 
                           ? 'bg-gradient-to-r from-purple-600 to-blue-600' 
-                          : 'bg-slate-600'
+                          : 'bg-slate-700'
                       }`}>
                         <span className="text-xs font-bold">
                           {message.sender === 'ai' ? 'AI' : 'U'}
                         </span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm text-slate-300">{message.message}</p>
+                        <p className="text-xs text-slate-300">{message.message}</p>
                         <span className="text-xs text-slate-500">
                           {formatTime(message.timestamp)}
                         </span>
@@ -314,15 +315,15 @@ const InterviewPage = () => {
 
                   {/* Typing Indicator */}
                   {isTyping && (
-                    <div className="flex gap-3">
-                      <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
+                    <div className="flex gap-2">
+                      <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
                         <span className="text-xs font-bold">AI</span>
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" />
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse animation-delay-200" />
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse animation-delay-400" />
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse" />
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-200" />
+                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-400" />
                         </div>
                       </div>
                     </div>
@@ -336,16 +337,16 @@ const InterviewPage = () => {
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask a question or explain your approach..."
-                    className="flex-1 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none"
+                    placeholder="Ask a question..."
+                    className="flex-1 bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                   />
                   <Button
                     onClick={handleSendMessage}
                     disabled={!currentMessage.trim()}
                     size="sm"
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-purple-600 hover:bg-purple-700 h-8 w-8 p-0"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </Button>
@@ -354,8 +355,8 @@ const InterviewPage = () => {
             </Card>
 
             {/* Voice Recorder */}
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="py-4">
+            <Card className="bg-slate-900/50 border-slate-800">
+              <CardContent className="py-3">
                 <VoiceRecorder
                   onTranscript={handleVoiceTranscript}
                   className="w-full"
