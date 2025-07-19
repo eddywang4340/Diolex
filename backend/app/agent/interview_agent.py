@@ -2,8 +2,10 @@ import os
 import subprocess
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from google import genai
-from prompt import interview_system_prompt
+import google.genai as genai
+from google.genai import types
+from google.genai.types import GenerateContentConfig
+from .prompt import interview_system_prompt
 
 load_dotenv()
 
@@ -37,13 +39,13 @@ class InterviewAgent:
         )
         
         
-    def send_message(self, message: str, user_code: str) -> str:
+    def send_message(self, message: str) -> str:
         """
         Send a message to the Gemini model and return the response.
         """
         try:
             # The model will automatically handle sending the history.
-            full_message = f"{message}\n\nUser Code Context:\n{user_code}"
+            full_message = f"{message}\n\nUser Code Context:\n{self.user_code}"
             response = self.client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=self.system_instruction + "\n\n" + full_message)
@@ -73,21 +75,6 @@ class InterviewAgent:
             # Check for an exit command
             if user_query.lower() in ["exit", "quit", "goodbye"]:
                 print("🤖 Ace: Session ended. Good luck with your interview preparation!")
-                break
-            
-            # Command to generate final feedback and end session
-            if user_query.lower() == "/feedback":
-                print("🤖 Ace: Would you like to provide your final code implementation? (y/n)")
-                provide_code = input().strip().lower()
-                
-                final_code = None
-                if provide_code in ['y', 'yes']:
-                    print("🤖 Ace: Please paste your final code (press Enter, then Ctrl+D on Linux/macOS or Ctrl+Z+Enter on Windows when done):")
-                    import sys
-                    code_lines = sys.stdin.readlines()
-                    final_code = "".join(code_lines).strip()
-                
-                self.end_interview_with_feedback(final_code)
                 break
             
             # Command to print formatted chat history

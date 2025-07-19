@@ -13,7 +13,7 @@ from datetime import datetime
 
 from app.db.database import get_db
 from app.db.models.problems import Problem
-from app.agent.agent import InterviewPrepAgent
+from app.agent.interview_agent import InterviewAgent
 from app.agent.tts_service import initialize_tts, speak, stop_audio
 
 # Configure logging
@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Global instances
-interview_agent = InterviewPrepAgent()
+interview_agent = InterviewAgent()
 
 @app.on_event("startup")
 async def startup_event():
