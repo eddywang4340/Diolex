@@ -10,31 +10,15 @@ import { javascript } from '@codemirror/lang-javascript';
 import { java } from '@codemirror/lang-java';
 import { cpp } from '@codemirror/lang-cpp';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { EditorView } from '@codemirror/view';
 
-// Piston API types
-interface PistonRuntime {
-  language: string;
-  version: string;
-  aliases: string[];
-}
-
+// Simplified Piston API types
 interface PistonExecuteResponse {
-  language: string;
-  version: string;
   run: {
     stdout: string;
     stderr: string;
-    code: number;
-    signal: string | null;
     output: string;
   };
-}
-
-interface TestCase {
-  id: string;
-  input: string;
-  expectedOutput: string;
-  description: string;
 }
 
 interface CodeEditorProps {
@@ -46,62 +30,9 @@ interface CodeEditorProps {
   disabled?: boolean;
 }
 
-type ProgrammingLanguage = 'python' | 'javascript' | 'typescript' | 'java' | 'cpp' | 'go';
+type ProgrammingLanguage = 'python' | 'javascript' | 'typescript' | 'java' | 'cpp';
 
-interface LanguageConfig {
-  label: string;
-  defaultCode: string;
-  extension: string;
-  codemirrorLang: any;
-  pistonLanguage: string;
-}
-
-// Piston API utilities
-const PISTON_API_BASE = 'https://emkc.org/api/v2/piston';
-
-const executePistonCode = async (code: string, language: string, input: string = ''): Promise<PistonExecuteResponse> => {
-  const response = await fetch(`${PISTON_API_BASE}/execute`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      language: language,
-      version: '*',
-      files: [
-        {
-          name: `main.${getFileExtension(language)}`,
-          content: code,
-        },
-      ],
-      stdin: input,
-      compile_timeout: 10000,
-      run_timeout: 3000,
-      compile_memory_limit: -1,
-      run_memory_limit: -1,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Piston API error: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-const getFileExtension = (language: string): string => {
-  const extensions: Record<string, string> = {
-    python: 'py',
-    javascript: 'js',
-    typescript: 'ts',
-    java: 'java',
-    cpp: 'cpp',
-    go: 'go',
-  };
-  return extensions[language] || 'txt';
-};
-
-const languageConfigs: Record<ProgrammingLanguage, LanguageConfig> = {
+const languageConfigs = {
   python: {
     label: 'Python',
     defaultCode: `def solution():
@@ -112,7 +43,6 @@ const languageConfigs: Record<ProgrammingLanguage, LanguageConfig> = {
 if __name__ == "__main__":
     result = solution()
     print(result)`,
-    extension: 'py',
     codemirrorLang: python(),
     pistonLanguage: 'python'
   },
@@ -125,7 +55,6 @@ if __name__ == "__main__":
 
 // Test your solution
 console.log(solution());`,
-    extension: 'js',
     codemirrorLang: javascript(),
     pistonLanguage: 'javascript'
   },
@@ -138,7 +67,6 @@ console.log(solution());`,
 
 // Test your solution
 console.log(solution());`,
-    extension: 'ts',
     codemirrorLang: javascript({ typescript: true }),
     pistonLanguage: 'typescript'
   },
@@ -156,7 +84,6 @@ console.log(solution());`,
         return null;
     }
 }`,
-    extension: 'java',
     codemirrorLang: java(),
     pistonLanguage: 'java'
   },
@@ -177,30 +104,13 @@ int main() {
     // Test your solution
     return 0;
 }`,
-    extension: 'cpp',
     codemirrorLang: cpp(),
     pistonLanguage: 'cpp'
-  },
-  go: {
-    label: 'Go',
-    defaultCode: `package main
-
-import "fmt"
-
-func solution() interface{} {
-    // Write your solution here
-    return nil
-}
-
-func main() {
-    result := solution()
-    fmt.Println(result)
-}`,
-    extension: 'go',
-    codemirrorLang: javascript(), // Use JS highlighting for Go as fallback
-    pistonLanguage: 'go'
   }
 };
+
+// Piston API endpoint
+const PISTON_API_BASE = 'https://emkc.org/api/v2/piston';
 
 const CodeEditor = ({
   value,
@@ -214,18 +124,10 @@ const CodeEditor = ({
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string>('');
   const [isOutputVisible, setIsOutputVisible] = useState(false);
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
-  const [isTestCaseMode, setIsTestCaseMode] = useState(false);
-  const [newTestCase, setNewTestCase] = useState<Omit<TestCase, 'id'>>({
-    input: '',
-    expectedOutput: '',
-    description: ''
-  });
 
   const handleLanguageChange = useCallback((language: ProgrammingLanguage) => {
     setSelectedLanguage(language);
-    // If the current code is empty or is the default for another language, 
-    // switch to the new language's default
+    // If the current code is empty or is the default for another language, switch to the new language's default
     const isDefaultCode = Object.values(languageConfigs).some(
       config => value.trim() === config.defaultCode.trim()
     );
@@ -235,24 +137,6 @@ const CodeEditor = ({
     }
   }, [value, onChange]);
 
-  const executeCode = async (codeToRun: string, input: string = ''): Promise<string> => {
-    try {
-      const result = await executePistonCode(
-        codeToRun, 
-        languageConfigs[selectedLanguage].pistonLanguage, 
-        input
-      );
-      
-      if (result.run.stderr) {
-        return `Error:\n${result.run.stderr}\n\nOutput:\n${result.run.stdout}`;
-      }
-      
-      return result.run.stdout || 'No output';
-    } catch (error) {
-      return `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  };
-
   const handleRunCode = useCallback(async () => {
     if (isRunning) return;
     
@@ -261,31 +145,26 @@ const CodeEditor = ({
     setOutput('Running code...');
     
     try {
-      let result = '';
+      // Execute code using Piston API
+      const response = await fetch(`${PISTON_API_BASE}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: languageConfigs[selectedLanguage].pistonLanguage,
+          version: '*',
+          files: [{ 
+            name: `main.${selectedLanguage === 'python' ? 'py' : selectedLanguage === 'cpp' ? 'cpp' : 'js'}`,
+            content: value 
+          }]
+        }),
+      });
       
-      if (testCases.length > 0) {
-        // Run against test cases
-        result = 'Running test cases:\n\n';
-        
-        for (let i = 0; i < testCases.length; i++) {
-          const testCase = testCases[i];
-          result += `Test Case ${i + 1}: ${testCase.description}\n`;
-          result += `Input: ${testCase.input || '(no input)'}\n`;
-          result += `Expected: ${testCase.expectedOutput}\n`;
-          
-          const output = await executeCode(value, testCase.input);
-          const actualOutput = output.trim();
-          const expected = testCase.expectedOutput.trim();
-          
-          result += `Actual: ${actualOutput}\n`;
-          result += `Status: ${actualOutput === expected ? '✅ PASS' : '❌ FAIL'}\n\n`;
-        }
-      } else {
-        // Run code normally
-        result = await executeCode(value);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
       
-      setOutput(result);
+      const result = await response.json() as PistonExecuteResponse;
+      setOutput(result.run.stderr ? `Error:\n${result.run.stderr}\n\nOutput:\n${result.run.stdout}` : result.run.stdout || 'No output');
       
       // Call the onRun callback if provided
       if (onRun) {
@@ -296,34 +175,18 @@ const CodeEditor = ({
     } finally {
       setIsRunning(false);
     }
-  }, [value, selectedLanguage, isRunning, testCases, onRun]);
+  }, [value, selectedLanguage, isRunning, onRun]);
 
   const handleSubmitCode = useCallback(() => {
     if (!onSubmit) return;
     onSubmit(value, selectedLanguage);
   }, [onSubmit, value, selectedLanguage]);
 
-  const addTestCase = useCallback(() => {
-    if (!newTestCase.description.trim()) return;
-    
-    const testCase: TestCase = {
-      id: Date.now().toString(),
-      ...newTestCase
-    };
-    
-    setTestCases(prev => [...prev, testCase]);
-    setNewTestCase({ input: '', expectedOutput: '', description: '' });
-  }, [newTestCase]);
-
-  const removeTestCase = useCallback((id: string) => {
-    setTestCases(prev => prev.filter(tc => tc.id !== id));
-  }, []);
-
   const lineCount = value.split('\n').length;
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <Card className="bg-slate-800/50 border-slate-700">
+    <div className={`space-y-4 w-full ${className}`}>
+      <Card className="bg-slate-800/50 border-slate-700 w-full overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-white flex items-center gap-2">
@@ -334,17 +197,6 @@ const CodeEditor = ({
             </CardTitle>
             
             <div className="flex items-center gap-3">
-              {/* Test Cases Toggle */}
-              <Button
-                variant={isTestCaseMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIsTestCaseMode(!isTestCaseMode)}
-                className="h-8 text-xs"
-              >
-                {isTestCaseMode ? 'Hide Tests' : 'Test Cases'}
-              </Button>
-              
-              {/* Language Selector */}
               <Select
                 value={selectedLanguage}
                 onValueChange={handleLanguageChange}
@@ -357,7 +209,7 @@ const CodeEditor = ({
                   {Object.entries(languageConfigs).map(([key, config]) => (
                     <SelectItem
                       key={key}
-                      value={key}
+                      value={key as ProgrammingLanguage}
                       className="text-white hover:bg-slate-700"
                     >
                       {config.label}
@@ -369,116 +221,28 @@ const CodeEditor = ({
           </div>
         </CardHeader>
 
-        <CardContent className="p-0">
-          {/* Test Cases Section */}
-          {isTestCaseMode && (
-            <div className="p-4 border-b border-slate-700 bg-slate-900/30">
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-white">Test Cases</h4>
-                
-                {/* Existing Test Cases */}
-                {testCases.map((testCase, index) => (
-                  <div key={testCase.id} className="bg-slate-800/50 p-3 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="text-xs font-medium text-white mb-1">
-                          Test {index + 1}: {testCase.description}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-slate-400">Input:</span>
-                            <pre className="text-slate-300 mt-1 bg-slate-900/50 p-2 rounded">
-                              {testCase.input || '(no input)'}
-                            </pre>
-                          </div>
-                          <div>
-                            <span className="text-slate-400">Expected:</span>
-                            <pre className="text-slate-300 mt-1 bg-slate-900/50 p-2 rounded">
-                              {testCase.expectedOutput}
-                            </pre>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeTestCase(testCase.id)}
-                        className="ml-2 h-6 w-6 p-0 border-slate-600 text-slate-400 hover:bg-red-600 hover:text-white"
-                      >
-                        ×
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Add New Test Case */}
-                <div className="bg-slate-800/30 p-3 rounded-lg border border-dashed border-slate-600">
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Test description..."
-                      value={newTestCase.description}
-                      onChange={(e) => setNewTestCase(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded px-2 py-1 text-xs text-white placeholder-slate-500"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <textarea
-                        placeholder="Input (optional)"
-                        value={newTestCase.input}
-                        onChange={(e) => setNewTestCase(prev => ({ ...prev, input: e.target.value }))}
-                        className="bg-slate-900/50 border border-slate-600 rounded px-2 py-1 text-xs text-white placeholder-slate-500 resize-none"
-                        rows={2}
-                      />
-                      <textarea
-                        placeholder="Expected output"
-                        value={newTestCase.expectedOutput}
-                        onChange={(e) => setNewTestCase(prev => ({ ...prev, expectedOutput: e.target.value }))}
-                        className="bg-slate-900/50 border border-slate-600 rounded px-2 py-1 text-xs text-white placeholder-slate-500 resize-none"
-                        rows={2}
-                      />
-                    </div>
-                    <Button
-                      onClick={addTestCase}
-                      disabled={!newTestCase.description.trim()}
-                      size="sm"
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white h-7"
-                    >
-                      Add Test Case
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CodeMirror Editor */}
-          <div className="relative">
+        <CardContent className="p-0 h-full">
+          <div className="relative h-full overflow-hidden">
             <CodeMirror
               value={value}
-              onChange={(val) => onChange(val)}
+              onChange={onChange}
               theme={oneDark}
-              extensions={[languageConfigs[selectedLanguage].codemirrorLang]}
+              extensions={[
+                languageConfigs[selectedLanguage].codemirrorLang,
+                EditorView.lineWrapping
+              ]}
               editable={!disabled}
               basicSetup={{
                 lineNumbers: true,
                 foldGutter: true,
-                dropCursor: false,
-                allowMultipleSelections: false,
-                indentOnInput: true,
                 bracketMatching: true,
                 closeBrackets: true,
                 autocompletion: true,
-                highlightSelectionMatches: false,
               }}
               className="text-sm"
-              style={{
-                fontSize: '14px',
-                minHeight: '400px',
-                backgroundColor: 'rgb(15 23 42 / 0.3)',
-              }}
+              height="400px"
             />
 
-            {/* Floating Action Buttons */}
             <div className="absolute bottom-4 right-4 flex gap-2">
               <Button
                 onClick={handleRunCode}
@@ -496,7 +260,7 @@ const CodeEditor = ({
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                     </svg>
-                    {testCases.length > 0 ? 'Run Tests' : 'Run'}
+                    Run
                   </div>
                 )}
               </Button>
@@ -521,14 +285,13 @@ const CodeEditor = ({
         </CardContent>
       </Card>
 
-      {/* Output Panel */}
       {isOutputVisible && (
         <Card className="bg-slate-900/50 border-slate-700">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
                 <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v3m0 4h1.428a1 1 0 001.356-1.247L7 14H3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
                 </svg>
                 Output
               </CardTitle>
@@ -552,7 +315,6 @@ const CodeEditor = ({
         </Card>
       )}
 
-      {/* Editor Stats */}
       <div className="flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-4">
           <Badge variant="secondary" className="bg-slate-800 text-slate-300">

@@ -173,7 +173,7 @@ const InterviewPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/')}
-                className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 bg-slate-800"
               >
                 ← Back
               </Button>
@@ -256,14 +256,16 @@ const InterviewPage = () => {
           </div>
 
           {/* Center Panel - Code Editor */}
-          <div className={`transition-all duration-300 ${isChatCollapsed ? 'flex-1' : 'flex-1'}`}>
-            <CodeEditor
-              value={state.userCode}
-              onChange={updateCode}
-              onRun={handleRunCode}
-              onSubmit={handleSubmitCode}
-              className="h-full"
-            />
+          <div className={`transition-all duration-300 flex-1 overflow-hidden`}>
+            <div className="w-full h-full overflow-hidden">
+              <CodeEditor
+                value={state.userCode}
+                onChange={updateCode}
+                onRun={handleRunCode}
+                onSubmit={handleSubmitCode}
+                className="h-full"
+              />
+            </div>
           </div>
 
           {/* Right Panel - Collapsible Chat */}
