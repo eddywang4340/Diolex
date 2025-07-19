@@ -22,6 +22,7 @@ const InterviewPage = () => {
   
   const [currentMessage, setCurrentMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
 
   // Get problem and settings from navigation state
   const locationState = location.state as LocationState;
@@ -98,10 +99,11 @@ const InterviewPage = () => {
     }
   }, [addMessage]);
 
-  const handleRunCode = useCallback(async (code: string, language: string) => {
+  const handleRunCode = useCallback(async (code: string, language: string): Promise<string> => {
     // In a real app, this would send code to your backend for execution
     console.log('Running code:', { code, language });
     updateCode(code);
+    return 'Code executed successfully!';
   }, [updateCode]);
 
   const handleSubmitCode = useCallback((code: string, language: string) => {
@@ -211,7 +213,7 @@ const InterviewPage = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex gap-4 h-[calc(100vh-140px)]">
           {/* Left Panel - Problem Description */}
-          <div className="w-1/3 flex flex-col">
+          <div className="w-1/4 flex flex-col">
             <Card className="bg-slate-900/50 border-slate-800 h-full flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-white">Problem Description</CardTitle>
@@ -254,7 +256,7 @@ const InterviewPage = () => {
           </div>
 
           {/* Center Panel - Code Editor */}
-          <div className="flex-1">
+          <div className={`transition-all duration-300 ${isChatCollapsed ? 'flex-1' : 'flex-1'}`}>
             <CodeEditor
               value={state.userCode}
               onChange={updateCode}
@@ -264,105 +266,139 @@ const InterviewPage = () => {
             />
           </div>
 
-          {/* Right Panel - Conversation */}
-          <div className="w-1/3 flex flex-col gap-4">
-            {/* Chat History */}
-            <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base text-white flex items-center gap-2">
-                  <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold">AI</span>
-                  </div>
-                  Interview Chat
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto space-y-2 mb-3">
-                  {/* Initial AI Message */}
-                  <div className="flex gap-2">
-                    <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
-                      <span className="text-xs font-bold">AI</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-slate-300">
-                        Hello! I've given you the "{problem.title}" problem. Take a moment to read it and ask any clarifying questions.
-                      </p>
-                      <span className="text-xs text-slate-500">Just now</span>
-                    </div>
-                  </div>
+          {/* Right Panel - Collapsible Chat */}
+          <div className={`transition-all duration-300 ${
+            isChatCollapsed ? 'w-12' : 'w-1/3'
+          } flex flex-col gap-4 relative`}>
+            
+            {/* Collapse Toggle Button */}
+            <Button
+              onClick={() => setIsChatCollapsed(!isChatCollapsed)}
+              variant="outline"
+              size="sm"
+              className={`absolute top-0 ${
+                isChatCollapsed ? 'left-2' : 'right-2'
+              } z-10 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 w-8 h-8 p-0`}
+            >
+              <svg 
+                className={`w-4 h-4 transition-transform ${isChatCollapsed ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Button>
 
-                  {/* Conversation Messages */}
-                  {state.conversation.map((message) => (
-                    <div key={message.id} className="flex gap-2">
-                      <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
-                        message.sender === 'ai' 
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600' 
-                          : 'bg-slate-700'
-                      }`}>
-                        <span className="text-xs font-bold">
-                          {message.sender === 'ai' ? 'AI' : 'U'}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-slate-300">{message.message}</p>
-                        <span className="text-xs text-slate-500">
-                          {formatTime(message.timestamp)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Typing Indicator */}
-                  {isTyping && (
-                    <div className="flex gap-2">
-                      <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
+            {!isChatCollapsed && (
+              <>
+                {/* Chat History */}
+                <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-white flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
                         <span className="text-xs font-bold">AI</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1">
-                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse" />
-                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-200" />
-                          <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-400" />
+                      Interview Chat
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col">
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+                      {/* Initial AI Message */}
+                      <div className="flex gap-2">
+                        <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
+                          <span className="text-xs font-bold">AI</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-slate-300">
+                            Hello! I've given you the "{problem.title}" problem. Take a moment to read it and ask any clarifying questions.
+                          </p>
+                          <span className="text-xs text-slate-500">Just now</span>
                         </div>
                       </div>
+
+                      {/* Conversation Messages */}
+                      {state.conversation.map((message) => (
+                        <div key={message.id} className="flex gap-2">
+                          <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
+                            message.sender === 'ai' 
+                              ? 'bg-gradient-to-r from-purple-600 to-blue-600' 
+                              : 'bg-slate-700'
+                          }`}>
+                            <span className="text-xs font-bold">
+                              {message.sender === 'ai' ? 'AI' : 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs text-slate-300">{message.message}</p>
+                            <span className="text-xs text-slate-500">
+                              {formatTime(message.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Typing Indicator */}
+                      {isTyping && (
+                        <div className="flex gap-2">
+                          <div className="w-5 h-5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex-shrink-0 flex items-center justify-center">
+                            <span className="text-xs font-bold">AI</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1">
+                              <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse" />
+                              <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-200" />
+                              <div className="w-1 h-1 bg-slate-400 rounded-full animate-pulse animation-delay-400" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Message Input */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask a question..."
-                    className="flex-1 bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!currentMessage.trim()}
-                    size="sm"
-                    className="bg-purple-600 hover:bg-purple-700 h-8 w-8 p-0"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    {/* Message Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={currentMessage}
+                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="Ask a question..."
+                        className="flex-1 bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!currentMessage.trim()}
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700 h-8 w-8 p-0"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            {/* Voice Recorder */}
-            <Card className="bg-slate-900/50 border-slate-800">
-              <CardContent className="py-3">
-                <VoiceRecorder
-                  onTranscript={handleVoiceTranscript}
-                  className="w-full"
-                />
-              </CardContent>
-            </Card>
+                {/* Voice Recorder */}
+                <Card className="bg-slate-900/50 border-slate-800">
+                  <CardContent className="py-3">
+                    <VoiceRecorder
+                      onTranscript={handleVoiceTranscript}
+                      className="w-full"
+                    />
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {isChatCollapsed && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="writing-mode-vertical text-slate-400 text-sm font-medium transform rotate-90">
+                  Interview Chat
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
