@@ -1,12 +1,15 @@
-# backend/main.py
+# backend/app/main.py - Enhanced with WebSocket support
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import Optional
+from typing import Optional, Dict, List
 import random
 import logging
+import json
+import asyncio
+from datetime import datetime
 
 from app.db.database import get_db
 from app.db.models.problems import Problem
@@ -32,8 +35,46 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --- End CORS Configuration ---
 
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, client_id: str):
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+        logger.info(f"Client {client_id} connected")
+
+    def disconnect(self, client_id: str):
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+            logger.info(f"Client {client_id} disconnected")
+
+    async def send_personal_message(self, message: dict, client_id: str):
+        websocket = self.active_connections.get(client_id)
+        if websocket:
+            await websocket.send_text(json.dumps(message))
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections.values():
+            await connection.send_text(json.dumps(message))
+
+manager = ConnectionManager()
+
+# Mock AI responses for demo purposes
+AI_RESPONSES = [
+    "That's an interesting approach! Can you walk me through your thinking?",
+    "Have you considered the time complexity of that solution?",
+    "What edge cases should we think about for this problem?",
+    "That's on the right track. Can you optimize it further?",
+    "Good question! Let me clarify that for you...",
+    "Try running through the example step by step with your approach.",
+    "What data structures would be most efficient here?",
+    "Can you think of any alternative approaches to solve this?",
+    "That's a great observation about the problem constraints.",
+    "How would your solution handle the worst-case scenario?"
+]
 
 def serialize_problem(problem: Problem) -> dict:
     """Helper function to serialize a problem instance"""
@@ -50,16 +91,107 @@ def serialize_problem(problem: Problem) -> dict:
         "similar_questions": problem.similar_questions
     }
 
+# WebSocket endpoint for real-time communication
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(websocket, client_id)
+    
+    try:
+        while True:
+            # Receive message from client
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
+            
+            logger.info(f"Received from {client_id}: {message_data}")
+            
+            # Process different message types
+            if message_data.get("type") == "speech":
+                await handle_speech_message(message_data, client_id)
+            elif message_data.get("type") == "chat":
+                await handle_chat_message(message_data, client_id)
+            elif message_data.get("type") == "ping":
+                await manager.send_personal_message({"type": "pong"}, client_id)
+                
+    except WebSocketDisconnect:
+        manager.disconnect(client_id)
+    except Exception as e:
+        logger.error(f"WebSocket error for {client_id}: {e}")
+        manager.disconnect(client_id)
+
+async def handle_speech_message(message_data: dict, client_id: str):
+    """Handle speech-to-text messages"""
+    transcript = message_data.get("data", "")
+    is_final = message_data.get("isFinal", False)
+    
+    if is_final and transcript.strip():
+        # Log the speech input
+        logger.info(f"Final speech from {client_id}: {transcript}")
+        
+        # Echo back the transcribed message as user message
+        user_message = {
+            "type": "user_message",
+            "message": transcript,
+            "timestamp": datetime.now().isoformat(),
+            "source": "speech"
+        }
+        await manager.send_personal_message(user_message, client_id)
+        
+        # Simulate AI processing delay
+        await asyncio.sleep(1)
+        
+        # Generate AI response
+        ai_response = random.choice(AI_RESPONSES)
+        ai_message = {
+            "type": "ai_message", 
+            "message": ai_response,
+            "timestamp": datetime.now().isoformat(),
+            "messageType": "response"
+        }
+        await manager.send_personal_message(ai_message, client_id)
+        
+    elif not is_final:
+        # Send interim transcript for real-time display
+        interim_message = {
+            "type": "interim_speech",
+            "message": transcript,
+            "timestamp": datetime.now().isoformat()
+        }
+        await manager.send_personal_message(interim_message, client_id)
+
+async def handle_chat_message(message_data: dict, client_id: str):
+    """Handle regular chat messages"""
+    message = message_data.get("message", "")
+    
+    if message.strip():
+        # Echo back as user message
+        user_message = {
+            "type": "user_message",
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "source": "text"
+        }
+        await manager.send_personal_message(user_message, client_id)
+        
+        # Simulate AI response
+        await asyncio.sleep(1)
+        ai_response = random.choice(AI_RESPONSES)
+        ai_message = {
+            "type": "ai_message",
+            "message": ai_response, 
+            "timestamp": datetime.now().isoformat(),
+            "messageType": "response"
+        }
+        await manager.send_personal_message(ai_message, client_id)
+
+# --- Existing endpoints remain the same ---
 
 @app.get("/")
 async def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
-
+    return {"message": "Hello from FastAPI Backend with WebSocket support!"}
 
 @app.get("/api/greeting")
 async def get_greeting():
     return {"message": "Greetings from the API endpoint!"}
-
 
 @app.get("/api/problems/random")
 async def get_random_problem(
@@ -133,7 +265,6 @@ async def get_random_problem(
         logger.error(f"Error fetching random problem: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
 @app.get("/api/problems/{problem_id}")
 async def get_problem(problem_id: int, db: AsyncSession = Depends(get_db)):
     """
@@ -156,7 +287,6 @@ async def get_problem(problem_id: int, db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching problem {problem_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 @app.get("/api/problems")
 async def get_problems(
