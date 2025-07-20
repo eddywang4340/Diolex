@@ -99,7 +99,6 @@ def preprocess_technical_text(text: str) -> str:
         r'\\"': ' double quote ',
         r"\\'": ' single quote ',
         r'"': ' quote ',
-        r"'": ' quote ',
         
         # Common programming patterns
         r'\bO\(([^)]+)\)': r'O of \1',  # Big O notation
