@@ -1,7 +1,7 @@
 // components/common/Timer.tsx
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useTimer } from '../../hooks/useTimer';
+import { useTimer } from '../hooks/useTimer';
 
 interface TimerProps {
   initialTime?: number; // in seconds

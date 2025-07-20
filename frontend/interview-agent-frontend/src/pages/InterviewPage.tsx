@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import CodeEditor  from '@/components/interview/CodeEditor';
-import Timer from '../components/common/Timer';
-import { useInterview } from '../hooks/useInterview';
-import { useContinuousSpeech } from '../hooks/useContinuousSpeech';
+import Timer from '@/components//Timer';
+import { useInterview } from '@/hooks/useInterview';
+import { useContinuousSpeech } from '@/hooks/useContinuousSpeech';
 import type { Problem } from '../types/interview';
 
 interface LocationState {
@@ -89,11 +89,6 @@ const InterviewPage = () => {
     // Send submission via WebSocket
     sendTextMessage(`I'm submitting my final solution in ${language}. Please review it and let me know what you think.`);
   }, [updateCode, sendTextMessage]);
-  const generateTranscript = (conversation) => {
-    return conversation
-      .map(msg => `[${new Date(msg.timestamp).toLocaleTimeString()}] ${msg.role === 'assistant' ? 'AI' : 'Candidate'}: ${msg.content}`)
-      .join('\n\n');
-  };
 
 
   const handleEndInterview = useCallback(() => {

@@ -138,7 +138,8 @@ async def handle_speech_message(message_data: dict, client_id: str):
     stop_audio()
     transcript = message_data.get("data", "")
     is_final = message_data.get("isFinal", False)
-    
+    code_context = message_data.get("codeContext", "")
+
     if is_final and transcript.strip():
         # Log the speech input
         logger.info(f"Final speech from {client_id}: {transcript}")
@@ -180,7 +181,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
 async def handle_chat_message(message_data: dict, client_id: str):
     """Handle regular chat messages"""
     message = message_data.get("message", "")
-    
+    code_context = message_data.get("codeContext", "")
     if message.strip():
         # Echo back as user message
         user_message = {

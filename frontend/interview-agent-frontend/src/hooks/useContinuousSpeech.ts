@@ -10,6 +10,10 @@ interface Message {
   source?: 'speech' | 'text';
 }
 
+type UseContinuousSpeechProps = {
+  currentCode?: string;
+}
+
 interface UseContinuousSpeechReturn {
   isSupported: boolean;
   isListening: boolean;
@@ -31,9 +35,9 @@ declare global {
   }
 }
 
-export const useContinuousSpeech = (): UseContinuousSpeechReturn => {
-  const [isListening, setIsListening] = useState(false);
+export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContinuousSpeechReturn => {  const [isListening, setIsListening] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const currentCode  = props?.currentCode || '';
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -162,12 +166,14 @@ export const useContinuousSpeech = (): UseContinuousSpeechReturn => {
     }
   }, []);
 
-  // Text message sending
-  const sendTextMessage = useCallback((message: string) => {
+ const sendTextMessage = useCallback((message: string) => {
     if (message.trim()) {
-      sendMessage('chat', { message: message.trim() });
+      sendMessage('chat', { 
+        message: message.trim(),
+        codeContext: currentCode // Add code context to the data object
+      });
     }
-  }, [sendMessage]);
+  }, [sendMessage, currentCode]);
 
   // Speech recognition setup
   useEffect(() => {
@@ -207,19 +213,20 @@ export const useContinuousSpeech = (): UseContinuousSpeechReturn => {
 
       // Send final transcript to server
       if (finalTranscript) {
-        sendMessage('speech', {
-          data: finalTranscript,
-          isFinal: true
-        });
-        setCurrentTranscript(''); // Clear after sending
-      } else if (interimTranscript) {
-        // Send interim results for real-time display
-        sendMessage('speech', {
-          data: interimTranscript,
-          isFinal: false
-        });
-      }
-    };
+          sendMessage('speech', {
+            data: finalTranscript,
+            isFinal: true,
+            codeContext: currentCode // Include code with speech
+          });
+          setCurrentTranscript('');
+        } else if (interimTranscript) {
+          sendMessage('speech', {
+            data: interimTranscript,
+            isFinal: false,
+            codeContext: currentCode // Include code with interim speech too
+          });
+        }
+      };
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
