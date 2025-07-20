@@ -153,25 +153,67 @@ const InterviewPage = () => {
           {/* Left Panel - Problem Description */}
           <div className="w-1/3 flex flex-col">
             <Card className="bg-slate-900/50 border-slate-800 h-full flex flex-col">
-              <CardHeader className="pb-3"><CardTitle className="text-base text-white">Problem Description</CardTitle></CardHeader>
-              <CardContent className="flex-1 overflow-y-auto prose prose-invert max-w-none text-sm text-slate-300">
-                <p>{problem.description}</p>
-                {problem.examples?.length > 0 && (
-                  <>
-                    <h4 className="text-white font-semibold">Examples:</h4>
-                    {problem.examples.map((example, index) => (
-                      <pre key={index} className="bg-slate-950/50 p-3 rounded-lg text-xs whitespace-pre-wrap">{example}</pre>
-                    ))}
-                  </>
-                )}
-                {Array.isArray(problem.constraints) && problem.constraints.length > 0 && (
-                  <>
-                    <h4 className="text-white font-semibold">Constraints:</h4>
-                    <ul className="list-disc pl-5">
-                      {problem.constraints.map((c, i) => <li key={i}>{c}</li>)}
-                    </ul>
-                  </>
-                )}
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base text-white">Problem Description</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto">
+                <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed space-y-4">
+                  {/* Main description */}
+                  <div className="text-sm">
+                    {problem.description.split(/(`[^`]+`)/).map((part, index) => {
+                      if (part.startsWith('`') && part.endsWith('`')) {
+                        return (
+                          <code key={index} className="bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono">
+                            {part.slice(1, -1)}
+                          </code>
+                        );
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
+                  </div>
+                  
+                  {/* Examples */}
+                  {problem.examples && problem.examples.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-white font-semibold mb-3 text-sm">Examples:</h4>
+                      <div className="space-y-3">
+                        {problem.examples.map((example, index) => (
+                          <div key={index} className="bg-slate-950/50 p-3 rounded-lg">
+                            <pre className="text-xs text-slate-300 whitespace-pre-wrap">
+                              {example}
+                            </pre>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Constraints */}
+                  {problem.constraints && problem.constraints.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-white font-semibold mb-3 text-sm">Constraints:</h4>
+                      <ul className="text-slate-300 text-xs space-y-1">
+                        {problem.constraints.map((constraint, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <span className="text-slate-500 mt-1">•</span>
+                            <span>
+                              {constraint.split(/(`[^`]+`)/).map((part, partIndex) => {
+                                if (part.startsWith('`') && part.endsWith('`')) {
+                                  return (
+                                    <code key={partIndex} className="bg-slate-800 text-blue-300 px-1 py-0.5 rounded text-xs font-mono">
+                                      {part.slice(1, -1)}
+                                    </code>
+                                  );
+                                }
+                                return <span key={partIndex}>{part}</span>;
+                              })}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

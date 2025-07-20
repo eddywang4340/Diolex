@@ -58,12 +58,6 @@ class InterviewAgent:
             )
         )
         
-        print()
-        print("This is the problem + " + self.send_message_agent(
-            message="What problem do you have stored",
-            user_code=self.user_code  # Include current user code context
-        ))
-        
     def send_message_agent(self, message: str, user_code) -> str:
         """
         Send a message to the Gemini model and return the response.
