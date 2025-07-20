@@ -38,17 +38,41 @@ def preprocess_technical_text(text: str) -> str:
     # Store original text for logging
     original_text = text
     
-    # Programming-specific replacements
+    # Step 1: Handle complex patterns first (most specific to least specific)
+    
+    # Handle ASCII code patterns specifically
+    text = re.sub(r'(\d+)\s*<=\s*([A-Z])\[(\w+)\]\.ASCIIcode\s*<=\s*(\d+)', 
+                  r'\2 bracket \3 bracket dot ASCII code is between \1 and \4', text)
+    
+    # Handle other complex bracket patterns with ranges
+    text = re.sub(r'(\d+)\s*<=\s*(\w+)\[(\w+)\]\.(\w+)\s*<=\s*(\d+)', 
+                  r'\2 bracket \3 bracket dot \4 is between \1 and \5', text)
+    
+    # Handle general range patterns with dot notation
+    text = re.sub(r'(\d+)\s*<=\s*(\w+)\.length\s*<=\s*(\d+)', 
+                  r'\2 dot length is between \1 and \3', text)
+    
+    # Handle general range patterns (broader match)
+    text = re.sub(r'(\d+)\s*<=\s*(\w+)\s*<=\s*(\d+)', 
+                  r'\2 is between \1 and \3', text)
+    
+    # Step 2: Handle remaining dot notation
+    text = re.sub(r'(\w+)\.length', r'\1 dot length', text)
+    text = re.sub(r'(\w+)\.(\w+)', r'\1 dot \2', text)
+    
+    # Step 3: Handle array/bracket notation (after complex patterns)
+    text = re.sub(r'(\w+)\[(\w+)\]', r'\1 bracket \2 bracket', text)
+    text = re.sub(r'(\w+)\[(\d+)\]', r'\1 bracket \2 bracket', text)
+    
+    # Step 4: Handle single comparison operators
+    text = re.sub(r'(\w+(?:\s+\w+)*)\s*<=\s*(\d+)', r'\1 is less than or equal to \2', text)
+    text = re.sub(r'(\w+(?:\s+\w+)*)\s*>=\s*(\d+)', r'\1 is greater than or equal to \2', text)
+    text = re.sub(r'(\w+(?:\s+\w+)*)\s*<\s*(\d+)', r'\1 is less than \2', text)
+    text = re.sub(r'(\w+(?:\s+\w+)*)\s*>\s*(\d+)', r'\1 is greater than \2', text)
+    
+    # Step 5: Handle remaining operators and special characters
     replacements = {
-        # Dot notation
-        r'(\w+)\.(\w+)': r'\1 dot \2',
-        r'(\w+)\.(\w+)\.(\w+)': r'\1 dot \2 dot \3',
-        
-        # Array/object notation
-        r'(\w+)\[(\w+)\]': r'\1 bracket \2 bracket',
-        r'(\w+)\[(\d+)\]': r'\1 bracket \2 bracket',
-        
-        # Comparison operators
+        # Remaining comparison operators
         r'<=': ' less than or equal to ',
         r'>=': ' greater than or equal to ',
         r'==': ' equals ',
@@ -63,24 +87,21 @@ def preprocess_technical_text(text: str) -> str:
         r'/': ' divided by ',
         r'%': ' modulo ',
         
-        # Programming keywords and common terms
-        r'\bpattern\.length\b': 'pattern dot length',
-        r'\bs\.length\b': 's dot length',
-        r'\barray\.length\b': 'array dot length',
-        r'\bstring\.length\b': 'string dot length',
-        
         # Common constraint language
-        r'\b(\d+)\s*<=\s*(\w+)\s*<=\s*(\d+)\b': r'\2 is between \1 and \3',
         r'\b(\w+)\s*contains\s*only\b': r'\1 contains only',
         r'\blower-case\b': 'lowercase',
         r'\bupper-case\b': 'uppercase',
+        r"doesn't contain": "does not contain",
+        r"doesn't": "does not",
         
-        # Numbers and ranges
-        r'\b1\s*<=\s*(\w+)\.length\s*<=\s*(\d+)\b': r'\1 dot length is between 1 and \2',
+        # Handle quote characters and backslashes
+        r'\\\\': ' backslash ',
+        r'\\"': ' double quote ',
+        r"\\'": ' single quote ',
+        r'"': ' quote ',
+        r"'": ' quote ',
         
         # Common programming patterns
-        r"'(.)'": r"quote \1 quote",  # Single quotes
-        r'"(.)"': r'quote \1 quote',   # Double quotes
         r'\bO\(([^)]+)\)': r'O of \1',  # Big O notation
         
         # Special characters
@@ -89,7 +110,7 @@ def preprocess_technical_text(text: str) -> str:
         r'@': ' at ',
         r'&': ' and ',
         r'\|': ' or ',
-        r'\^': ' caret ',
+        r'\^': ' to the power of ',
         r'~': ' tilde ',
     }
     
@@ -129,8 +150,8 @@ def preprocess_constraints_text(text: str) -> str:
         r'(\w+) contains only lower-case English letters and spaces': r'\1 contains only lowercase English letters and spaces',
         r'(\w+) does not contain any leading or trailing spaces': r'\1 does not contain any leading or trailing spaces',
         r'All the words in (\w+) are separated by a single space': r'All the words in \1 are separated by a single space',
-        r'1 <= (\w+)\.length <= (\d+)': r'\1 dot length is between 1 and \2',
-        r'1 <= (\w+) <= (\d+)': r'\1 is between 1 and \2',
+        r'(\d+) <= (\w+)\.length <= (\d+)': r'\2 dot length is between \1 and \3',
+        r'(\d+) <= (\w+) <= (\d+)': r'\2 is between \1 and \3',
     }
     
     for pattern, replacement in conversions.items():

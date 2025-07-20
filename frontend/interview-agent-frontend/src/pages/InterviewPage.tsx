@@ -343,32 +343,57 @@ const InterviewPage = () => {
                 <CardTitle className="text-base text-white">Problem Description</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
-                <div className="prose prose-invert max-w-none">
-                  <p className="text-slate-300 leading-relaxed mb-4 text-sm">
-                    {problem.description}
-                  </p>
+                <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed space-y-4">
+                  {/* Main description */}
+                  <div className="text-sm">
+                    {problem.description.split(/(`[^`]+`)/).map((part, index) => {
+                      if (part.startsWith('`') && part.endsWith('`')) {
+                        return (
+                          <code key={index} className="bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono">
+                            {part.slice(1, -1)}
+                          </code>
+                        );
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
+                  </div>
                   
+                  {/* Examples */}
                   {problem.examples && problem.examples.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="text-white font-semibold text-sm">Examples:</h4>
-                      {problem.examples.map((example, index) => (
-                        <div key={index} className="bg-slate-950/50 p-3 rounded-lg">
-                          <pre className="text-xs text-slate-300 whitespace-pre-wrap">
-                            {example}
-                          </pre>
-                        </div>
-                      ))}
+                    <div className="mt-6">
+                      <h4 className="text-white font-semibold mb-3 text-sm">Examples:</h4>
+                      <div className="space-y-3">
+                        {problem.examples.map((example, index) => (
+                          <div key={index} className="bg-slate-950/50 p-3 rounded-lg">
+                            <pre className="text-xs text-slate-300 whitespace-pre-wrap">
+                              {example}
+                            </pre>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
+                  {/* Constraints */}
                   {problem.constraints && problem.constraints.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="text-white font-semibold mb-2 text-sm">Constraints:</h4>
+                    <div className="mt-6">
+                      <h4 className="text-white font-semibold mb-3 text-sm">Constraints:</h4>
                       <ul className="text-slate-300 text-xs space-y-1">
                         {problem.constraints.map((constraint, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <span className="text-slate-500 mt-1">•</span>
-                            <span>{constraint}</span>
+                            <span>
+                              {constraint.split(/(`[^`]+`)/).map((part, partIndex) => {
+                                if (part.startsWith('`') && part.endsWith('`')) {
+                                  return (
+                                    <code key={partIndex} className="bg-slate-800 text-blue-300 px-1 py-0.5 rounded text-xs font-mono">
+                                      {part.slice(1, -1)}
+                                    </code>
+                                  );
+                                }
+                                return <span key={partIndex}>{part}</span>;
+                              })}
+                            </span>
                           </li>
                         ))}
                       </ul>
