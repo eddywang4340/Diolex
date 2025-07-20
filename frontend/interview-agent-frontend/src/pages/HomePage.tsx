@@ -57,7 +57,7 @@ const HomePage = () => {
         title: apiProblem.title,
         difficulty: apiProblem.difficulty.toLowerCase(),
         type: apiProblem.related_topics?.[0] || 'general',
-        description: apiProblem.description,
+        description: extractMainDescription(apiProblem.description),
         examples: extractExamples(apiProblem.description),
         companies: apiProblem.companies || [],
         constraints: extractConstraints(apiProblem.description),
@@ -70,9 +70,14 @@ const HomePage = () => {
   };
 
   // Helper functions to parse the description for examples and constraints
+  const extractMainDescription = (description: string): string => {
+    // Split at the first occurrence of "Example" or "Constraints"
+    const parts = description.split(/(?=Example \d+:|Constraints:)/);
+    return parts[0].trim();
+  };
   const extractExamples = (description: string): string[] => {
     const examples = [];
-    const exampleRegex = /Example \d+:([\s\S]*?)(?=Example \d+:|$)/g;
+    const exampleRegex = /Example \d+:([\s\S]*?)(?=Example \d+:|Constraints:|$)/g;
     let match;
     
     while ((match = exampleRegex.exec(description)) !== null) {
@@ -83,14 +88,14 @@ const HomePage = () => {
   };
   
   const extractConstraints = (description: string): string[] => {
-    const constraintsRegex = /Constraints:([\s\S]*?)(?=Examples|Example|$)/i;
+    const constraintsRegex = /(Constraints|Note):([\s\S]*?)(?=Example \d+:|Examples:|$)/i;
     const match = constraintsRegex.exec(description);
     
-    if (match && match[1]) {
-      return match[1]
+    if (match && match[2]) {
+      return match[2]
         .split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 0);
+        .filter(line => line.length > 0 && !line.startsWith('Example'));
     }
     
     return [];

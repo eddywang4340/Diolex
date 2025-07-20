@@ -14,7 +14,7 @@ class InterviewAgent:
     A stateful interview prep agent using Gemini that can incorporate user's current code.
     """
     
-    def __init__(self, problem_data: dict = None, question: str = None):
+    def __init__(self):
         """
         Initialize the interview prep agent.
         
@@ -25,81 +25,94 @@ class InterviewAgent:
         
         # Store user code context
         self.user_code = "No code provided yet."
-
-        # Store problem
         self.problem_description = "No problem provided"
-        
-        # Manual history tracking
         self.history = []
-
-        # Store problem
-        self.problem_description = "No problem provided"
-        
         self.client = genai.Client()
         
+    
         # Create dynamic system instruction with user code context
-        self.system_instruction = interview_system_prompt.format(user_code_context=self.user_code, problem=self.problem_description)
-        
         self.api_key = os.getenv("GEMINI_API_KEY")
         
-        # Initialize the generative model
+        # Wait for update problem before starting chat session
+        self.chat_session = None
+    
+    def update_problem(self, problem_data: dict):
+        """
+        Update the problem data and regenerate the system instruction.
+        
+        Args:
+            problem_data (dict): New problem data from the API
+        """
+        self.problem_description = problem_data.get('description', 'No problem provided')
+        
+        # Regenerate system instruction with new problem
+        self.system_instruction = interview_system_prompt.format(
+            problem=self.problem_description
+        )
+        
+        print("Session created")
         self.chat_session = self.client.chats.create(
             model='gemini-2.5-flash',  # Using a standard, available model
             config=types.GenerateContentConfig(
                 system_instruction=self.system_instruction
             )
         )
-    
-    def update_problem(self, problem_data: dict):
-        """
-        Update the problem data and regenerate the system instruction.
         
-        Args:
-            problem_data (dict): New problem data from the API
-        """
-        self.problem_description = problem_data.get('description', 'No problem provided')
+        print()
+        print("This is the problem + " + self.send_message_agent(
+            message="What problem do you have stored",
+            user_code=self.user_code  # Include current user code context
+        ))
         
-        # Regenerate system instruction with new problem
-        self.system_instruction = interview_system_prompt.format(
-            user_code_context=self.user_code, 
-            problem=self.problem_description
-        )
-    
-    def update_problem(self, problem_data: dict):
-        """
-        Update the problem data and regenerate the system instruction.
-        
-        Args:
-            problem_data (dict): New problem data from the API
-        """
-        self.problem_description = problem_data.get('description', 'No problem provided')
-        
-        # Regenerate system instruction with new problem
-        self.system_instruction = interview_system_prompt.format(
-            user_code_context=self.user_code, 
-            problem=self.problem_description
-        )
-        
-    def send_message(self, message: str, user_code) -> str:
+    def send_message_agent(self, message: str, user_code) -> str:
         """
         Send a message to the Gemini model and return the response.
         Also manually tracks the conversation in self.history.
         """
         try:
-            # Add user message to manual history
+            # Build context with chat history (don't add current message to history yet)
+            context_parts = []
+            
+            # Add conversation history if it exists
+            if self.history:  # Check if there's any existing history
+                # Get last 5 messages for context (adjust number as needed)
+                recent_history = self.get_last_n_messages(5)
+                
+                if recent_history:
+                    # Temporarily set history to just the recent messages for formatting
+                    original_history = self.history.copy()
+                    self.history = recent_history
+                    
+                    # Use existing formatting function
+                    chat_history = self.get_formatted_history()
+                    
+                    # Restore full history
+                    self.history = original_history
+                    
+                    if chat_history:
+                        context_parts.append(f"Previous Conversation:\n{chat_history}")
+            
+            # Add current user code context
+            if user_code and user_code.strip() != "No code provided yet.":
+                context_parts.append(f"Current User Code:\n{user_code}")
+            
+            # Build the full message
+            if context_parts:
+                full_message = f"{message}\n\n" + "\n\n".join(context_parts)
+            else:
+                full_message = message
+            
+            print("This is current user code context:", user_code)
+            response = self.chat_session.send_message(full_message)
+            
+            self.user_code = user_code  # Update user code context
+            
+            # Add user message to manual history (after sending to avoid including it in context)
             self.history.append({
                 "role": "user",
                 "content": message,
                 "user_code": user_code,
             })
-            
-            
-            # Use the chat session to send messages and maintain history
-            full_message = f"{message}\n\nUser Code Context:\n{user_code}"
-            print(user_code)
-            response = self.chat_session.send_message(full_message)
-            
-            self.user_code = user_code  # Update user code context
             
             # Add AI response to manual history
             self.history.append({
@@ -127,14 +140,6 @@ class InterviewAgent:
     def clear_history(self):
         self.history.clear()
     
-    # def add_system_message(self, message: str):
-
-    #     self.history.append({
-    #         "role": "system",
-    #         "content": message,
-    #         "timestamp": self._get_timestamp()
-    #     })
-
     def get_last_n_messages(self, n: int) -> list:
         """Get the last n messages from manual history."""
         return self.history[-n:] if n <= len(self.history) else self.history.copy()
