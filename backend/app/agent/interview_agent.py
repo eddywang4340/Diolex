@@ -10,18 +10,7 @@ from .prompt import interview_system_prompt
 load_dotenv()
 
 class InterviewAgent:
-    """
-    A stateful interview prep agent using Gemini that can incorporate user's current code.
-    """
-    
     def __init__(self):
-        """
-        Initialize the interview prep agent.
-        
-        Args:
-            api_key (str): Gemini API key. If None, will load from environment.
-            user_code (str): User's current code to provide as context.
-        """
         
         # Store user code context
         self.user_code = "No code provided yet."
@@ -29,7 +18,6 @@ class InterviewAgent:
         self.history = []
         self.client = genai.Client()
         
-    
         # Create dynamic system instruction with user code context
         self.api_key = os.getenv("GEMINI_API_KEY")
         
@@ -145,6 +133,9 @@ class InterviewAgent:
         while True:
             # Get user input from the command line
             user_query = input("You: ").strip()
+            
+            # Initalize the agent for the testing purpose
+            self.update_problem(problem_data={"description": "Given an integer array nums and an integer target, return the indices of the two distinct numbers whose sum equals target (exactly one such pair exists) in any order."})
 
             # Check for an exit command
             if user_query.lower() in ["exit", "quit", "goodbye"]:

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from typing import Optional, Dict, List
+from pydantic import BaseModel
 import random
 import logging
 import json
@@ -14,11 +15,13 @@ from datetime import datetime
 from app.db.database import get_db
 from app.db.models.problems import Problem
 from app.agent.interview_agent import InterviewAgent
+from app.agent.feedback_agent import FeedbackAgent
 from app.agent.tts_service import initialize_tts, speak, stop_audio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 app = FastAPI()
 
@@ -40,6 +43,7 @@ app.add_middleware(
 
 # Global interview agent - will be reinitialized with each new problem
 interview_agent = InterviewAgent()
+feedback_agent = FeedbackAgent()
 
 @app.on_event("startup")
 async def startup_event():
@@ -465,4 +469,47 @@ async def get_problems(
 
 @app.post("/end")
 async def end():
-    stop_audio()
+    try:
+        # Stop any ongoing audio
+        stop_audio()
+        print("This has been called")
+        
+        # Extract data from request
+        code_context = interview_agent.user_code
+        # Get the current problem details from the interview agent
+        current_problem = {
+            'description': interview_agent.problem_description,
+            'title': getattr(interview_agent, 'problem_title', 'Unknown Problem')
+        }
+        
+        # Get the formatted chat history from the interview agent
+        chat_history = interview_agent.get_formatted_history()
+        
+        logger.info(f"Ending interview with code context length: {len(code_context)}")
+        logger.info(f"Chat history length: {len(chat_history)}")
+        logger.info(f"Problem: {current_problem.get('title', 'Unknown')}")
+        
+        # Update the feedback agent with all context
+        feedback_agent.update_context(
+            problem_data=current_problem,
+            chat_history=chat_history,
+            final_code=code_context
+        )
+        
+        # Generate and return the feedback JSON
+        feedback_json = feedback_agent.generate_feedback_json()
+        
+        # Parse the JSON string to return as proper JSON response
+        feedback_data = json.loads(feedback_json)
+        print("Feedback data generated:", feedback_data)
+        return {
+            "success": True,
+            "feedback": feedback_data,
+            "message": "Interview ended and feedback generated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error ending interview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate feedback: {str(e)}")
+    
+    
