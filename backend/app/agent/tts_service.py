@@ -3,6 +3,7 @@
 import logging
 import threading
 import time
+import re
 from kokoro import KPipeline
 import sounddevice as sd
 
@@ -24,6 +25,119 @@ def initialize_tts(lang_code: str = 'a'):
         logger.error(f"Failed to initialize TTS pipeline: {e}")
         _pipeline = None
 
+def preprocess_technical_text(text: str) -> str:
+    """
+    Convert technical programming text to spoken form
+    
+    Args:
+        text (str): Raw text with programming notation
+        
+    Returns:
+        str: Text converted to spoken form
+    """
+    # Store original text for logging
+    original_text = text
+    
+    # Programming-specific replacements
+    replacements = {
+        # Dot notation
+        r'(\w+)\.(\w+)': r'\1 dot \2',
+        r'(\w+)\.(\w+)\.(\w+)': r'\1 dot \2 dot \3',
+        
+        # Array/object notation
+        r'(\w+)\[(\w+)\]': r'\1 bracket \2 bracket',
+        r'(\w+)\[(\d+)\]': r'\1 bracket \2 bracket',
+        
+        # Comparison operators
+        r'<=': ' less than or equal to ',
+        r'>=': ' greater than or equal to ',
+        r'==': ' equals ',
+        r'!=': ' not equal to ',
+        r'<': ' less than ',
+        r'>': ' greater than ',
+        
+        # Math operators
+        r'\+': ' plus ',
+        r'-': ' minus ',
+        r'\*': ' times ',
+        r'/': ' divided by ',
+        r'%': ' modulo ',
+        
+        # Programming keywords and common terms
+        r'\bpattern\.length\b': 'pattern dot length',
+        r'\bs\.length\b': 's dot length',
+        r'\barray\.length\b': 'array dot length',
+        r'\bstring\.length\b': 'string dot length',
+        
+        # Common constraint language
+        r'\b(\d+)\s*<=\s*(\w+)\s*<=\s*(\d+)\b': r'\2 is between \1 and \3',
+        r'\b(\w+)\s*contains\s*only\b': r'\1 contains only',
+        r'\blower-case\b': 'lowercase',
+        r'\bupper-case\b': 'uppercase',
+        
+        # Numbers and ranges
+        r'\b1\s*<=\s*(\w+)\.length\s*<=\s*(\d+)\b': r'\1 dot length is between 1 and \2',
+        
+        # Common programming patterns
+        r"'(.)'": r"quote \1 quote",  # Single quotes
+        r'"(.)"': r'quote \1 quote',   # Double quotes
+        r'\bO\(([^)]+)\)': r'O of \1',  # Big O notation
+        
+        # Special characters
+        r'_': ' underscore ',
+        r'#': ' hash ',
+        r'@': ' at ',
+        r'&': ' and ',
+        r'\|': ' or ',
+        r'\^': ' caret ',
+        r'~': ' tilde ',
+    }
+    
+    # Apply replacements
+    for pattern, replacement in replacements.items():
+        text = re.sub(pattern, replacement, text)
+    
+    # Clean up extra spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    # Log the transformation if significant changes were made
+    if text != original_text:
+        logger.debug(f"Text preprocessing: '{original_text[:100]}...' -> '{text[:100]}...'")
+    
+    return text
+
+def preprocess_constraints_text(text: str) -> str:
+    """
+    Special preprocessing for constraint descriptions to make them more natural
+    
+    Args:
+        text (str): Constraint text
+        
+    Returns:
+        str: More naturally spoken constraint text
+    """
+    
+    # Handle numbered constraints
+    text = re.sub(r'^(\d+)\.\s*`([^`]+)`', r'\1. \2', text, flags=re.MULTILINE)
+    
+    # Convert backticks to spoken form
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    
+    # Make constraint language more natural
+    conversions = {
+        r'(\w+) contains only lower-case English letters': r'\1 contains only lowercase English letters',
+        r'(\w+) contains only lower-case English letters and spaces': r'\1 contains only lowercase English letters and spaces',
+        r'(\w+) does not contain any leading or trailing spaces': r'\1 does not contain any leading or trailing spaces',
+        r'All the words in (\w+) are separated by a single space': r'All the words in \1 are separated by a single space',
+        r'1 <= (\w+)\.length <= (\d+)': r'\1 dot length is between 1 and \2',
+        r'1 <= (\w+) <= (\d+)': r'\1 is between 1 and \2',
+    }
+    
+    for pattern, replacement in conversions.items():
+        text = re.sub(pattern, replacement, text)
+    
+    return text
+
 def _play_audio_thread(text: str, voice: str):
     """Internal function to play audio in a separate thread"""
     global _pipeline, _stop_event, _is_playing
@@ -33,7 +147,12 @@ def _play_audio_thread(text: str, voice: str):
         if _pipeline is None:
             logger.error("TTS pipeline is not initialized")
             return
-        generator = _pipeline(text, voice=voice)
+            
+        # Preprocess the text before generating audio
+        processed_text = preprocess_technical_text(text)
+        processed_text = preprocess_constraints_text(processed_text)
+        
+        generator = _pipeline(processed_text, voice=voice)
         
         for i, (gs, ps, audio) in enumerate(generator):
             # Check if we should stop before playing this chunk

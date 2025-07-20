@@ -113,22 +113,23 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     last_code_context = ""
     try:
         while True:
-            # Receive message from client
-            data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-            message_data = json.loads(data)
-            last_code_context = message_data.get("codeContext", last_code_context)
-            
-            logger.info(f"Received from {client_id}: {message_data}")
-            
-            # Process different message types
-            if message_data.get("type") == "speech":
-                await handle_speech_message(message_data, client_id)
-            elif message_data.get("type") == "chat":
-                await handle_chat_message(message_data, client_id)
-            elif message_data.get("type") == "ping":
-                await manager.send_personal_message({"type": "pong"}, client_id)
+            try:
+                # Receive message from client
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                message_data = json.loads(data)
+                last_code_context = message_data.get("codeContext", last_code_context)
                 
-    except asyncio.TimeoutError:
+                logger.info(f"Received from {client_id}: {message_data}")
+                
+                # Process different message types
+                if message_data.get("type") == "speech":
+                    await handle_speech_message(message_data, client_id)
+                elif message_data.get("type") == "chat":
+                    await handle_chat_message(message_data, client_id)
+                elif message_data.get("type") == "ping":
+                    await manager.send_personal_message({"type": "pong"}, client_id)
+                
+            except asyncio.TimeoutError:
                 # This block executes if no message is received for 30 seconds
                 logger.info(f"Client {client_id} has been idle. Generating a hint.")
                 
@@ -151,6 +152,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
                 # Use TTS to speak the hint
                 speak(ai_hint)
+
+                continue
                 
     except WebSocketDisconnect:
         manager.disconnect(client_id)
@@ -164,6 +167,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
     transcript = message_data.get("data", "")
     is_final = message_data.get("isFinal", False)
     code_context = message_data.get("codeContext", "")
+    print("THIS IS THE CURRENT CODE_CONTEXT " + code_context)
 
     if is_final and transcript.strip():
         # Log the speech input
