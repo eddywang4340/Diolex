@@ -181,8 +181,62 @@ const InterviewPage = () => {
                     </Badge>
                   </div>
                   
-                  <p className="text-slate-300 leading-relaxed">
-                    {problem.description}
+                  <p className="text-slate-300 leading-relaxed space-y-6">
+                    {/* Main description */}
+                    <div>
+                      {problem.description.split(/(`[^`]+`)/).map((part, index) => {
+                        if (part.startsWith('`') && part.endsWith('`')) {
+                          // This is inline code - remove backticks and style as code
+                          return (
+                            <code key={index} className="bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded text-sm font-mono">
+                              {part.slice(1, -1)}
+                            </code>
+                          );
+                        }
+                        // Regular text
+                        return <span key={index}>{part}</span>;
+                      })}
+                    </div>
+                    
+                    {/* Examples */}
+                    {problem.examples && problem.examples.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-white mb-2">Examples:</h4>
+                        {problem.examples.map((example, index) => (
+                          <div key={index} className="bg-slate-800 p-3 rounded mb-2 font-mono text-sm">
+                            <pre className="whitespace-pre-wrap">{example}</pre>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Constraints */}
+                    {problem.constraints && problem.constraints.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-white font-semibold mb-2 text-sm">Constraints:</h4>
+                        <ul className="text-slate-300 text-xs space-y-1">
+                          {problem.constraints.map((constraint, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <span className="text-slate-500 mt-1">•</span>
+                              <span>
+                                {constraint.split(/(`[^`]+`)/).map((part, partIndex) => {
+                                  if (part.startsWith('`') && part.endsWith('`')) {
+                                    // This is inline code - remove backticks and style as code
+                                    return (
+                                      <code key={partIndex} className="bg-slate-800 text-blue-300 px-1 py-0.5 rounded text-xs font-mono">
+                                        {part.slice(1, -1)}
+                                      </code>
+                                    );
+                                  }
+                                  // Regular text
+                                  return <span key={partIndex}>{part}</span>;
+                                })}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </p>
                 </div>
               </CardContent>
