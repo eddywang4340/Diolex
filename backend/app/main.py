@@ -157,7 +157,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
         await asyncio.sleep(1)
         
         # Generate AI response
-        ai_response = interview_agent.send_message(user_message["message"])
+        ai_response = interview_agent.send_message(user_message["message"], user_code=code_context)
         ai_message = {
             "type": "ai_message", 
             "message": ai_response,
