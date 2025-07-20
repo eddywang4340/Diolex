@@ -20,6 +20,7 @@ const InterviewPage = () => {
   const { problem, settings } = (location.state as LocationState) || {};
 
   const [hasStartedInterview, setHasStartedInterview] = useState(false);
+  const [isEndingInterview, setIsEndingInterview] = useState(false);
 
   const { 
     state, 
@@ -91,24 +92,68 @@ const InterviewPage = () => {
     // You might want to trigger the end of the interview here or after a final AI response.
   }, [updateCode, sendTextMessage]);
 
-  const handleEndAndReview = useCallback(() => {
-    endInterview();
-    navigate('/results', { 
-      state: { 
-        problem,
-        code: state.userCode,
-        conversation: state.conversation,
-        duration: settings.timeLimit * 60,
-      } 
-    });
-  }, [endInterview, navigate, problem, state.userCode, state.conversation, settings]);
+  const handleEndAndReview = useCallback(async () => {
+    try {
+      // Show loading immediately
+      setIsEndingInterview(true);
+      
+      // Stop the interview first
+      endInterview();
+      
+      // Call the /end endpoint to get AI feedback
+      const response = await fetch('http://localhost:8000/end', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Navigate to results with the AI feedback
+        navigate('/results', { 
+          state: { 
+            problem,
+            code: state.userCode,
+            conversation: state.conversation,
+            duration: settings.timeLimit * 60,
+            aiFeedback: result.feedback, // Pass the AI-generated feedback
+          } 
+        });
+      } else {
+        console.error('Failed to get feedback:', result);
+        // Still navigate but without AI feedback
+        navigate('/results', { 
+          state: { 
+            problem,
+            code: state.userCode,
+            conversation: state.conversation,
+            duration: settings.timeLimit * 60,
+          } 
+        });
+      }
+    } catch (error) {
+      console.error('Error calling /end endpoint:', error);
+      // Still navigate but without AI feedback
+      navigate('/results', { 
+        state: { 
+          problem,
+          code: state.userCode,
+          conversation: state.conversation,
+          duration: settings.timeLimit * 60,
+        } 
+      });
+    }
+  }, [endInterview, navigate, problem, state.userCode, state.conversation, settings, setIsEndingInterview]);
 
   const handleTimeUp = useCallback(() => {
     sendTextMessage("Time's up! Let me wrap up my solution.");
+    setIsEndingInterview(true); // Show loading immediately
     setTimeout(() => {
       handleEndAndReview();
     }, 3000);
-  }, [sendTextMessage, handleEndAndReview]);
+  }, [sendTextMessage, handleEndAndReview, setIsEndingInterview]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -127,6 +172,16 @@ const InterviewPage = () => {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-white text-xl">Preparing your interview...</div>
+      </div>
+    );
+  }
+  
+  if (isEndingInterview) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <div className="w-16 h-16 border-4 border-slate-600 border-t-purple-500 rounded-full animate-spin"></div>
+        <p className="mt-4 text-xl font-light">Finishing your interview...</p>
+        <p className="mt-2 text-sm text-slate-400">We're analyzing your performance and generating feedback</p>
       </div>
     );
   }

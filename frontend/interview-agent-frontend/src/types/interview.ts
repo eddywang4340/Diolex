@@ -24,7 +24,20 @@ export interface ConversationMessage {
   timestamp: Date;
   type?: 'question' | 'hint' | 'clarification' | 'feedback';
   source?: string;
+}
 
+export interface AIEvaluation {
+  clarification: number;
+  reasoning: number;
+  solution: number;
+  total: number;
+  score: number;
+  recommendation: 'Strong Hire' | 'Hire' | 'No Hire' | 'Strong No Hire';
+  explanation: string;
+  overallFeedback: string;
+  strengths?: string[];
+  improvements?: string[];
+  codeQuality: string;
 }
 
 export interface InterviewState {
