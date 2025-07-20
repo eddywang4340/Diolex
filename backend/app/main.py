@@ -171,7 +171,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
     transcript = message_data.get("data", "")
     is_final = message_data.get("isFinal", False)
     code_context = message_data.get("codeContext", "")
-    logger.info(f"THIS IS THE CODE CONTEXT: {code_context}")
+    # logger.info(f"THIS IS THE CODE CONTEXT: {code_context}")
     if is_final and transcript.strip():
         # Log the speech input
         logger.info(f"Final speech from {client_id}: {transcript}")
@@ -338,11 +338,9 @@ async def get_random_problem(
         # Select a random problem from the results
         random_problem = random.choice(problems)
         problem_data = serialize_problem(random_problem)
-        print("This is the problem data: ", problem_data)
 
         # Initialize the interview agent with the selected problem
         interview_agent.update_problem(problem_data)
-        print("HAPPPENN")
         
         return {
             "success": True,
@@ -472,7 +470,6 @@ async def end():
     try:
         # Stop any ongoing audio
         stop_audio()
-        print("This has been called")
         
         # Extract data from request
         code_context = interview_agent.user_code

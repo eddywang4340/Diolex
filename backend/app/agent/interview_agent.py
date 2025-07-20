@@ -84,7 +84,6 @@ class InterviewAgent:
             else:
                 full_message = message
             
-            print("This is current user code context:", user_code)
             response = self.chat_session.send_message(full_message)
             
             self.user_code = user_code  # Update user code context
