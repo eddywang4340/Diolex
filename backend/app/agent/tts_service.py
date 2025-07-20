@@ -82,7 +82,7 @@ def preprocess_technical_text(text: str) -> str:
         
         # Math operators
         r'\+': ' plus ',
-        r'-': ' minus ',
+        r' - ': ' minus ',
         r'\*': ' times ',
         r'/': ' divided by ',
         r'%': ' modulo ',
@@ -98,7 +98,6 @@ def preprocess_technical_text(text: str) -> str:
         r'\\\\': ' backslash ',
         r'\\"': ' double quote ',
         r"\\'": ' single quote ',
-        r'"': ' quote ',
         
         # Common programming patterns
         r'\bO\(([^)]+)\)': r'O of \1',  # Big O notation
