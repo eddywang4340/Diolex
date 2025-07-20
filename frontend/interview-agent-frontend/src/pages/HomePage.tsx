@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import ProblemSetup from '../components/interview/ProblemSetup';
 import { useInterview } from '../hooks/useInterview';
 import type { Problem } from '../types/interview';
+import logo from '../assets/logo.png';
 
 // API base URL - change this based on your environment
 const API_URL = 'http://localhost:8000';
@@ -139,6 +140,11 @@ const HomePage = () => {
             {/* <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-xl">T</span>
             </div> */}
+            {/* <img 
+              src={logo} 
+              alt="Diolex Logo" 
+              className="w-12 h-12 object-contain"
+            /> */}
             <div>
               <h1 className="text-6xl font-bold text-white">Diolex</h1>
               <p className="text-slate-400 text-lg">Start training like it's real.</p>
