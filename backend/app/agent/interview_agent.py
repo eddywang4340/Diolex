@@ -14,7 +14,7 @@ class InterviewAgent:
     A stateful interview prep agent using Gemini that can incorporate user's current code.
     """
     
-    def __init__(self, question: str = None):
+    def __init__(self, problem_data: dict = None, question: str = None):
         """
         Initialize the interview prep agent.
         
@@ -25,6 +25,9 @@ class InterviewAgent:
         
         # Store user code context
         self.user_code = "No code provided yet."
+
+        # Store problem
+        self.problem_description = "No problem provided"
         
         # Manual history tracking
         self.history = []
@@ -45,6 +48,21 @@ class InterviewAgent:
             config=types.GenerateContentConfig(
                 system_instruction=self.system_instruction
             )
+        )
+    
+    def update_problem(self, problem_data: dict):
+        """
+        Update the problem data and regenerate the system instruction.
+        
+        Args:
+            problem_data (dict): New problem data from the API
+        """
+        self.problem_description = problem_data.get('description', 'No problem provided')
+        
+        # Regenerate system instruction with new problem
+        self.system_instruction = interview_system_prompt.format(
+            user_code_context=self.user_code, 
+            problem=self.problem_description
         )
     
     def update_problem(self, problem_data: dict):
