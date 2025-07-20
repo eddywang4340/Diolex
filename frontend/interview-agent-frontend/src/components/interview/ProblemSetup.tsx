@@ -118,7 +118,7 @@ const ProblemSetup = ({
       <CardContent className="px-6 space-y-6">
         {/* Difficulty Selection */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-300">
+          <label className="text-sm font-medium text-slate-300 mb-2 block">
             Problem Difficulty
           </label>
           <div className="grid grid-cols-4 gap-2">
@@ -142,7 +142,7 @@ const ProblemSetup = ({
         
         {/* Problem Type Selection - Updated to match backend */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-300">
+          <label className="text-sm font-medium text-slate-300 mb-2 block">
             Problem Type
           </label>
           <Select
@@ -172,7 +172,7 @@ const ProblemSetup = ({
         
         {/* Company with Search */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-300">
+          <label className="text-sm font-medium text-slate-300 mb-2 block">
             Company Focus
           </label>
           <div className="relative">
@@ -255,7 +255,7 @@ const ProblemSetup = ({
         
         {/* Time Limit */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-300">
+          <label className="text-sm font-medium text-slate-300 mb-2 block">
             Time Limit
           </label>
           <Select
