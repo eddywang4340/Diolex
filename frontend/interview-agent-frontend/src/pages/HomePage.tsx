@@ -136,12 +136,12 @@ const HomePage = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+            {/* <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-xl">T</span>
-            </div>
+            </div> */}
             <div>
-              <h1 className="text-4xl font-bold text-white">TechInterview.AI</h1>
-              <p className="text-slate-400 text-lg">Practice like it's the real thing</p>
+              <h1 className="text-6xl font-bold text-white">Diolex</h1>
+              <p className="text-slate-400 text-lg">Start training like it's real.</p>
             </div>
           </div>
         </div>
