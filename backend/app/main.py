@@ -164,7 +164,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
     transcript = message_data.get("data", "")
     is_final = message_data.get("isFinal", False)
     code_context = message_data.get("codeContext", "")
-
+    logger.info(f"THIS IS THE CODE CONTEXT: {code_context}")
     if is_final and transcript.strip():
         # Log the speech input
         logger.info(f"Final speech from {client_id}: {transcript}")

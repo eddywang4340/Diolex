@@ -168,12 +168,12 @@ class InterviewAgent:
                 continue
             
             # Send the user's query to the model and get the response
-            response = self.send_message(user_query, "hi")
+            response = self.send_message_agent(user_query, "hi")
             print(f"🤖 Ace: {response}")
     
     def get_formatted_history(self):
         """
-        Build and return the formatted chat history string using manual history.
+        Build and return the formatted chat shistory string using manual history.
         Returns an empty string if no messages.
         """
         if not self.history:

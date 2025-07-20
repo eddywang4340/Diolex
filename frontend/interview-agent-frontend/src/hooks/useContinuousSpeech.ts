@@ -1,4 +1,3 @@
-// hooks/useContinuousSpeech.ts
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Message {
@@ -35,13 +34,26 @@ declare global {
   }
 }
 
-export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContinuousSpeechReturn => {  const [isListening, setIsListening] = useState(false);
+export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContinuousSpeechReturn => {
+  const [isListening, setIsListening] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const currentCode  = props?.currentCode || '';
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
+
+  // Store the latest code in a ref to access in callbacks
+  const currentCodeRef = useRef<string>(props?.currentCode || '');
+  
+  // Update ref when props change
+  useEffect(() => {
+    if (props?.currentCode !== undefined) {
+      currentCodeRef.current = props.currentCode;
+      console.log('Code context updated:', currentCodeRef.current.length > 0 ? 
+        `${currentCodeRef.current.slice(0, 100)}... (${currentCodeRef.current.length} chars)` : 
+        '(empty)');
+    }
+  }, [props?.currentCode]);
 
   const websocketRef = useRef<WebSocket | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -160,20 +172,28 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
   // Send message via WebSocket
   const sendMessage = useCallback((type: string, data: any) => {
     if (websocketRef.current?.readyState === WebSocket.OPEN) {
-      websocketRef.current.send(JSON.stringify({ type, ...data }));
+      // Always access the latest code from the ref
+      const currentCode = currentCodeRef.current;
+      const payload = { ...data, codeContext: currentCode };
+      
+      console.log(`Sending ${type} with code context length:`, 
+        currentCode ? `${currentCode.length} chars` : '0 chars');
+      
+      websocketRef.current.send(JSON.stringify({ type, ...payload }));
     } else {
+      console.error('WebSocket not connected. Message not sent.');
       setError('Not connected to server');
     }
   }, []);
 
- const sendTextMessage = useCallback((message: string) => {
+  const sendTextMessage = useCallback((message: string) => {
     if (message.trim()) {
-      sendMessage('chat', { 
-        message: message.trim(),
-        codeContext: currentCode // Add code context to the data object
-      });
+      console.log('Sending text message with code context length:', 
+        currentCodeRef.current ? currentCodeRef.current.length : 0);
+      
+      sendMessage('chat', { message: message.trim() });
     }
-  }, [sendMessage, currentCode]);
+  }, [sendMessage]);
 
   // Speech recognition setup
   useEffect(() => {
@@ -213,17 +233,18 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
 
       // Send final transcript to server
       if (finalTranscript) {
+          console.log('Sending final speech with code context length:', 
+            currentCodeRef.current ? currentCodeRef.current.length : 0);
+          
           sendMessage('speech', {
             data: finalTranscript,
-            isFinal: true,
-            codeContext: currentCode // Include code with speech
+            isFinal: true
           });
           setCurrentTranscript('');
         } else if (interimTranscript) {
           sendMessage('speech', {
             data: interimTranscript,
-            isFinal: false,
-            codeContext: currentCode // Include code with interim speech too
+            isFinal: false
           });
         }
       };

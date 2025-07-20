@@ -1,6 +1,6 @@
-// hooks/useInterview.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { InterviewState, InterviewSettings, Problem, ConversationMessage } from '../types/interview';
+import { useContinuousSpeech } from './useContinuousSpeech';
 
 const initialSettings: InterviewSettings = {
   difficulty: 'easy',
@@ -19,18 +19,47 @@ const initialState: InterviewState = {
   hasStarted: false,
 };
 
-interface UseInterviewReturn {
-  state: InterviewState;
-  updateSettings: (settings: Partial<InterviewSettings>) => void;
-  startInterview: (problem: Problem) => void;
-  endInterview: () => void;
-  addMessage: (message: Omit<ConversationMessage, 'id' | 'timestamp'>) => void;
-  updateCode: (code: string) => void;
-  resetInterview: () => void;
-}
+// Accept initial code as an argument to initialize userCode
+export const useInterview = (initialCode: string = '') => {
+  const [state, setState] = useState<InterviewState>({
+    ...initialState,
+    userCode: initialCode
+  });
 
-export const useInterview = (): UseInterviewReturn => {
-  const [state, setState] = useState<InterviewState>(initialState);
+  // Pass the userCode from our own state to the speech hook
+  const { 
+    isSupported: isSpeechSupported, 
+    isListening, 
+    isConnected, 
+    currentTranscript, 
+    messages: speechHookMessages, 
+    error: speechError, 
+    sendTextMessage, 
+    clearMessages: clearSpeechMessages, 
+    startInterview: startSpeech, 
+    endInterview: endSpeech 
+  } = useContinuousSpeech({ currentCode: state.userCode });
+
+  // Sync messages from the speech hook to the main interview state
+  useEffect(() => {
+    if (speechHookMessages.length !== state.conversation.length) {
+      setState(prev => ({
+        ...prev,
+        conversation: speechHookMessages
+          .filter(msg => 
+            msg.type === 'question' ||
+            msg.type === 'hint' ||
+            msg.type === 'clarification' ||
+            msg.type === 'feedback' ||
+            msg.type === undefined
+          )
+          .map(msg => ({
+            ...msg,
+            type: msg.type === 'response' ? undefined : msg.type
+          })) as ConversationMessage[],
+      }));
+    }
+  }, [speechHookMessages, state.conversation.length]);
 
   const updateSettings = useCallback((newSettings: Partial<InterviewSettings>) => {
     setState(prev => ({
@@ -39,64 +68,59 @@ export const useInterview = (): UseInterviewReturn => {
     }));
   }, []);
 
-  const startInterview = useCallback((problem: Problem) => {
-    setState(prev => ({
-      ...prev,
+  const startInterview = useCallback((problem: Problem, settings?: InterviewSettings) => {
+    clearSpeechMessages();
+    // Use provided settings or fall back to current settings
+    const updatedSettings = settings || state.settings;
+    const newTime = updatedSettings.timeLimit * 60;
+    setState({
       isActive: true,
       hasStarted: true,
       currentProblem: problem,
-      timeRemaining: prev.settings.timeLimit * 60,
+      settings: updatedSettings,
+      // Use problem's starter code if available (handle type issue)
+      userCode: (problem as any).starterCode || state.userCode || '',
+      timeRemaining: newTime,
       conversation: [
         {
           id: crypto.randomUUID(),
           sender: 'ai',
-          message: `Hello! I'm your AI interviewer today. I've given you the "${problem.title}" problem to solve. Take a moment to read through it, and feel free to ask me any clarifying questions about the requirements.`,
+          message: `Hello! Let's begin with "${problem.title}". Take a moment to read the description. You can ask me questions or explain your approach at any time.`,
           timestamp: new Date(),
           type: 'question'
         }
       ]
-    }));
-  }, []);
+    });
+    startSpeech();
+  }, [startSpeech, clearSpeechMessages, state.settings, state.userCode]);
 
   const endInterview = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      isActive: false
-    }));
-  }, []);
-
-  const addMessage = useCallback((message: Omit<ConversationMessage, 'id' | 'timestamp'>) => {
-    setState(prev => ({
-      ...prev,
-      conversation: [
-        ...prev.conversation,
-        {
-          ...message,
-          id: crypto.randomUUID(),
-          timestamp: new Date()
-        }
-      ]
-    }));
-  }, []);
+    endSpeech();
+    setState(prev => ({ ...prev, isActive: false }));
+  }, [endSpeech]);
 
   const updateCode = useCallback((code: string) => {
-    setState(prev => ({
-      ...prev,
-      userCode: code
-    }));
+    console.log(`[useInterview] Updating code: ${code.length} chars`);
+    setState(prev => ({ ...prev, userCode: code }));
   }, []);
 
   const resetInterview = useCallback(() => {
     setState(initialState);
-  }, []);
+    clearSpeechMessages();
+  }, [clearSpeechMessages]);
 
   return {
     state,
     updateSettings,
     startInterview,
     endInterview,
-    addMessage,
     updateCode,
     resetInterview,
+    isSpeechSupported,
+    isListening,
+    isConnected,
+    currentTranscript,
+    speechError,
+    sendTextMessage,
   };
 };

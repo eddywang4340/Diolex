@@ -45,12 +45,23 @@ def _play_audio_thread(text: str, voice: str):
             sd.play(audio, 24000)
             
             # Wait for this chunk to finish, but check for stop event periodically
-            while sd.get_stream().active:
+            stream_active = True
+            while stream_active:
                 if _stop_event.is_set():
-                    sd.stop()  # Stop the current chunk immediately
-                    logger.info(f"Audio interrupted during chunk {i}")
+                    # DON'T call sd.stop() here - let the main stop_audio function handle it
+                    logger.info(f"Audio interrupt requested during chunk {i}")
                     break
-                time.sleep(0.01)  # Check every 10ms
+                
+                # Check if the stream is still active
+                try:
+                    stream = sd.get_stream()
+                    if stream and stream.active:
+                        time.sleep(0.01)  # Check every 10ms
+                    else:
+                        stream_active = False
+                except Exception as e:
+                    logger.warning(f"Error checking stream status: {e}")
+                    stream_active = False
         
         logger.debug("Audio playback completed")
         
@@ -59,6 +70,36 @@ def _play_audio_thread(text: str, voice: str):
     finally:
         _is_playing = False
 
+def stop_audio():
+    """Stop any currently playing audio immediately"""
+    global _current_playback_thread, _stop_event, _is_playing
+    
+    if not _is_playing:
+        logger.debug("No audio currently playing, nothing to stop")
+        return
+    
+    logger.info("Stopping audio playback...")
+    
+    # Signal the playback thread to stop
+    _stop_event.set()
+    
+    # Stop any active sounddevice playback
+    try:
+        # Add a guard here to prevent double-free
+        stream = sd.get_stream()
+        if stream and stream.active:
+            sd.stop()
+    except Exception as e:
+        logger.warning(f"Error stopping sounddevice: {e}")
+    
+    # Wait for the playback thread to finish (with timeout)
+    if _current_playback_thread and _current_playback_thread.is_alive():
+        _current_playback_thread.join(timeout=1.0)
+        if _current_playback_thread.is_alive():
+            logger.warning("Playback thread did not stop within timeout")
+    
+    _is_playing = False
+    logger.info("Audio playback stopped")
 def speak(text: str, voice: str = 'af_heart') -> bool:
     """
     Convert text to speech and play it (interruptible)
@@ -91,36 +132,12 @@ def speak(text: str, voice: str = 'af_heart') -> bool:
         )
         _current_playback_thread.start()
         
-        logger.info(f"Started TTS playback: {text[:50]}...")
+        logger.info(f"Started TTS playback: {text[:150]}...")
         return True
         
     except Exception as e:
         logger.error(f"Error starting audio playback: {e}")
         return False
-
-def stop_audio():
-    """Stop any currently playing audio immediately"""
-    global _current_playback_thread, _stop_event, _is_playing
-    
-    logger.info("Stopping audio playback...")
-    
-    # Signal the playback thread to stop
-    _stop_event.set()
-    
-    # Stop any active sounddevice playback
-    try:
-        sd.stop()
-    except Exception as e:
-        logger.warning(f"Error stopping sounddevice: {e}")
-    
-    # Wait for the playback thread to finish (with timeout)
-    if _current_playback_thread and _current_playback_thread.is_alive():
-        _current_playback_thread.join(timeout=1.0)
-        if _current_playback_thread.is_alive():
-            logger.warning("Playback thread did not stop within timeout")
-    
-    _is_playing = False
-    logger.info("Audio playback stopped")
 
 def is_playing() -> bool:
     """Check if audio is currently playing"""
