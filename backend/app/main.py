@@ -110,12 +110,13 @@ def serialize_problem(problem: Problem) -> dict:
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
-    
+    last_code_context = ""
     try:
         while True:
             # Receive message from client
-            data = await websocket.receive_text()
+            data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
             message_data = json.loads(data)
+            last_code_context = message_data.get("codeContext", last_code_context)
             
             logger.info(f"Received from {client_id}: {message_data}")
             
@@ -126,6 +127,30 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 await handle_chat_message(message_data, client_id)
             elif message_data.get("type") == "ping":
                 await manager.send_personal_message({"type": "pong"}, client_id)
+                
+    except asyncio.TimeoutError:
+                # This block executes if no message is received for 30 seconds
+                logger.info(f"Client {client_id} has been idle. Generating a hint.")
+                
+                # Internal prompt to the LLM to generate a nudge
+                nudge_prompt = "The user has been silent for a while. Offer a gentle hint or ask a question to help them get unstuck. Don't give away the full answer."
+                
+                # Generate AI response using the nudge prompt and the last known code context
+                ai_hint = interview_agent.send_message_agent(nudge_prompt, last_code_context)
+                
+                # Create the message payload for the hint
+                hint_message = {
+                    "type": "ai_message",
+                    "message": ai_hint,
+                    "timestamp": datetime.now().isoformat(),
+                    "messageType": "hint" # Differentiate this from a direct response
+                }
+                
+                # Send the hint to the client
+                await manager.send_personal_message(hint_message, client_id)
+
+                # Use TTS to speak the hint
+                speak(ai_hint)
                 
     except WebSocketDisconnect:
         manager.disconnect(client_id)
@@ -157,7 +182,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
         await asyncio.sleep(1)
         
         # Generate AI response
-        ai_response = interview_agent.send_message(user_message["message"], user_code=code_context)
+        ai_response = interview_agent.send_message_agent(user_message["message"], user_code=code_context)
         ai_message = {
             "type": "ai_message", 
             "message": ai_response,
@@ -280,9 +305,11 @@ async def get_random_problem(
         # Select a random problem from the results
         random_problem = random.choice(problems)
         problem_data = serialize_problem(random_problem)
+        print("This is the problem data: ", problem_data)
 
         # Initialize the interview agent with the selected problem
         interview_agent.update_problem(problem_data)
+        print("HAPPPENN")
         
         return {
             "success": True,
