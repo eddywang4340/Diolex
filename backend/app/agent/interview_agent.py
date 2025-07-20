@@ -15,16 +15,27 @@ class InterviewAgent:
     """
     
     def __init__(self, question: str = None):
+        """
+        Initialize the interview prep agent.
+        
+        Args:
+            api_key (str): Gemini API key. If None, will load from environment.
+            user_code (str): User's current code to provide as context.
+        """
+        
         # Store user code context
         self.user_code = "No code provided yet."
         
         # Manual history tracking
         self.history = []
+
+        # Store problem
+        self.problem_description = "No problem provided"
         
         self.client = genai.Client()
         
         # Create dynamic system instruction with user code context
-        self.system_instruction = interview_system_prompt.format(user_code_context=self.user_code)
+        self.system_instruction = interview_system_prompt.format(user_code_context=self.user_code, problem=self.problem_description)
         
         self.api_key = os.getenv("GEMINI_API_KEY")
         
@@ -34,6 +45,21 @@ class InterviewAgent:
             config=types.GenerateContentConfig(
                 system_instruction=self.system_instruction
             )
+        )
+    
+    def update_problem(self, problem_data: dict):
+        """
+        Update the problem data and regenerate the system instruction.
+        
+        Args:
+            problem_data (dict): New problem data from the API
+        """
+        self.problem_description = problem_data.get('description', 'No problem provided')
+        
+        # Regenerate system instruction with new problem
+        self.system_instruction = interview_system_prompt.format(
+            user_code_context=self.user_code, 
+            problem=self.problem_description
         )
         
     def send_message(self, message: str, user_code) -> str:
