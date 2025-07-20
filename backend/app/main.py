@@ -217,6 +217,7 @@ async def get_greeting():
 async def get_random_problem(
     difficulty: Optional[str] = Query(None, description="Filter by difficulty: Easy, Medium, or Hard"),
     company: Optional[str] = Query(None, description="Filter by company (checks if company is in the companies array)"),
+    problem_type: Optional[str] = Query(None, description="Filter by problem type (e.g., 'coding', 'system design')"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -249,6 +250,9 @@ async def get_random_problem(
         if company:
             query = query.where(Problem.companies.any(company))
         
+        if problem_type and problem_type != 'all':
+                query = query.where(Problem.related_topics.any(problem_type))
+            
         # Execute the query
         result = await db.execute(query)
         problems = result.scalars().all()
@@ -260,6 +264,10 @@ async def get_random_problem(
                 filter_info.append(f"difficulty: {difficulty}")
             if company:
                 filter_info.append(f"company: {company}")
+            if problem_type and problem_type != 'all':
+                filter_info.append(f"type: {problem_type}")
+            
+            filter_str = " and ".join(filter_info) if filter_info else "no filters"
             
             filter_str = " and ".join(filter_info) if filter_info else "no filters"
             
@@ -282,7 +290,7 @@ async def get_random_problem(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching random problem: {e}")
+        logger.error(f"Error fetching random problem: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/problems/{problem_id}")

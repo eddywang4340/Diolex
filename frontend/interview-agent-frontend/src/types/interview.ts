@@ -11,7 +11,7 @@ export interface Problem {
 }
 
 export interface InterviewSettings {
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'all';
   problemType: string;
   company: string;
   timeLimit: number; // in minutes

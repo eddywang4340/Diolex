@@ -1,122 +1,129 @@
 // pages/HomePage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import ProblemSetup from '../components/interview/ProblemSetup';
 import { useInterview } from '../hooks/useInterview';
 import type { Problem } from '../types/interview';
 
-// Sample problems - in a real app, this would come from your API/database
-const sampleProblems: Problem[] = [
-  {
-    id: '1',
-    title: 'Two Sum',
-    difficulty: 'easy',
-    type: 'arrays-hashing',
-    description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
-    examples: [
-      'Input: nums = [2,7,11,15], target = 9\nOutput: [0,1]\nExplanation: Because nums[0] + nums[1] == 9, we return [0, 1].'
-    ],
-    companies: ['google', 'amazon', 'microsoft', 'apple'],
-    constraints: [
-      '2 <= nums.length <= 10^4',
-      '-10^9 <= nums[i] <= 10^9',
-      '-10^9 <= target <= 10^9',
-      'Only one valid answer exists.'
-    ]
-  },
-  {
-    id: '2',
-    title: 'Valid Parentheses',
-    difficulty: 'easy',
-    type: 'stack',
-    description: 'Given a string s containing just the characters \'(\', \')\', \'{\', \'}\', \'[\' and \']\', determine if the input string is valid.',
-    examples: [
-      'Input: s = "()"\nOutput: true',
-      'Input: s = "()[]{}"\nOutput: true',
-      'Input: s = "(]"\nOutput: false'
-    ],
-    companies: ['meta', 'google', 'amazon'],
-    constraints: [
-      '1 <= s.length <= 10^4',
-      's consists of parentheses only \'()[]{}\''
-    ]
-  },
-  {
-    id: '3',
-    title: 'Longest Substring Without Repeating Characters',
-    difficulty: 'medium',
-    type: 'sliding-window',
-    description: 'Given a string s, find the length of the longest substring without repeating characters.',
-    examples: [
-      'Input: s = "abcabcbb"\nOutput: 3\nExplanation: The answer is "abc", with the length of 3.',
-      'Input: s = "bbbbb"\nOutput: 1\nExplanation: The answer is "b", with the length of 1.'
-    ],
-    companies: ['amazon', 'microsoft', 'bloomberg'],
-    constraints: [
-      '0 <= s.length <= 5 * 10^4',
-      's consists of English letters, digits, symbols and spaces.'
-    ]
-  }
-];
+// API base URL - change this based on your environment
+const API_URL = 'http://localhost:8000';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { state, updateSettings } = useInterview();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getRandomProblem = (): Problem => {
+  const fetchRandomProblem = async (): Promise<Problem | null> => {
     const { difficulty, problemType, company } = state.settings;
     
-    let filteredProblems = sampleProblems;
+    // Build query parameters
+    const params = new URLSearchParams();
     
-    // Filter by difficulty
-    if (difficulty !== 'easy') { // Assuming we want to filter
-      filteredProblems = filteredProblems.filter(p => p.difficulty === difficulty);
+    // Only add parameters that are selected (not the default values)
+    if (difficulty !== 'all') {
+      // Convert from lowercase to title case for the API
+      const formattedDifficulty = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+      params.append('difficulty', formattedDifficulty);
     }
     
-    // Filter by problem type
-    if (problemType !== 'all') {
-      filteredProblems = filteredProblems.filter(p => p.type === problemType);
-    }
-    
-    // Filter by company
     if (company !== 'general') {
-      filteredProblems = filteredProblems.filter(p => 
-        p.companies.includes(company as any)
-      );
+      params.append('company', company);
+    }
+
+    if (problemType !== 'all') {
+      params.append('problem_type', problemType);
     }
     
-    // If no problems match criteria, return all problems
-    if (filteredProblems.length === 0) {
-      filteredProblems = sampleProblems;
+    try {
+      const response = await fetch(`${API_URL}/api/problems/random?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success || !data.data) {
+        setError(data.message || 'No problems found with the selected criteria');
+        return null;
+      }
+      
+      // Convert the API response to our Problem type
+      const apiProblem = data.data;
+      return {
+        id: apiProblem.id.toString(),
+        title: apiProblem.title,
+        difficulty: apiProblem.difficulty.toLowerCase(),
+        type: apiProblem.related_topics?.[0] || 'general',
+        description: apiProblem.description,
+        examples: extractExamples(apiProblem.description),
+        companies: apiProblem.companies || [],
+        constraints: extractConstraints(apiProblem.description),
+      };
+    } catch (err) {
+      console.error('Error fetching problem:', err);
+      setError('Failed to fetch a problem. Please try again.');
+      return null;
+    }
+  };
+
+  // Helper functions to parse the description for examples and constraints
+  const extractExamples = (description: string): string[] => {
+    const examples = [];
+    const exampleRegex = /Example \d+:([\s\S]*?)(?=Example \d+:|$)/g;
+    let match;
+    
+    while ((match = exampleRegex.exec(description)) !== null) {
+      examples.push(match[1].trim());
     }
     
-    return filteredProblems[Math.floor(Math.random() * filteredProblems.length)];
+    return examples.length > 0 ? examples : [description];
+  };
+  
+  const extractConstraints = (description: string): string[] => {
+    const constraintsRegex = /Constraints:([\s\S]*?)(?=Examples|Example|$)/i;
+    const match = constraintsRegex.exec(description);
+    
+    if (match && match[1]) {
+      return match[1]
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    }
+    
+    return [];
   };
 
   const handleStartInterview = async () => {
     setIsLoading(true);
+    setError(null);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const selectedProblem = await fetchRandomProblem();
       
-      const selectedProblem = getRandomProblem();
-      
-      // Navigate to interview page with the selected problem
-      navigate('/interview', { 
-        state: { 
-          problem: selectedProblem,
-          settings: state.settings 
-        } 
-      });
+      if (selectedProblem) {
+        // Navigate to interview page with the selected problem
+        navigate('/interview', { 
+          state: { 
+            problem: selectedProblem,
+            settings: state.settings 
+          } 
+        });
+      }
     } catch (error) {
       console.error('Error starting interview:', error);
+      setError('Failed to start the interview. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Clear error when settings change
+  useEffect(() => {
+    setError(null);
+  }, [state.settings]);
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -143,6 +150,19 @@ const HomePage = () => {
               onStartInterview={handleStartInterview}
               isLoading={isLoading}
             />
+            
+            {error && (
+              <div className="mt-4">
+                <div className="bg-red-500/10 text-red-500 p-4 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13h-2v6h2V5zm0 8h-2v2h2v-2z" />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Panel - Welcome Content */}
