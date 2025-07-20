@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import google.genai as genai
 from google.genai import types
 from google.genai.types import GenerateContentConfig
-from prompt import interview_system_prompt
+from .prompt import interview_system_prompt
 
 load_dotenv()
 

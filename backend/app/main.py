@@ -3,7 +3,7 @@
 from fastapi import FastAPI, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from typing import Optional, Dict, List
 import random
 import logging
@@ -157,7 +157,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
         await asyncio.sleep(1)
         
         # Generate AI response
-        ai_response = interview_agent.send_message(user_message["message"])
+        ai_response = interview_agent.send_message(user_message["message"], user_code=code_context)
         ai_message = {
             "type": "ai_message", 
             "message": ai_response,
@@ -216,49 +216,76 @@ async def get_greeting():
 @app.get("/api/problems/random")
 async def get_random_problem(
     difficulty: Optional[str] = Query(None, description="Filter by difficulty: Easy, Medium, or Hard"),
-    company: Optional[str] = Query(None, description="Filter by company (checks if company is in the companies array)"),
-    problem_type: Optional[str] = Query(None, description="Filter by problem type (e.g., 'coding', 'system design')"),
+    company: Optional[str] = Query(None, description="Filter by company"),
+    problem_type: Optional[str] = Query(None, description="Filter by problem type"),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get a random problem based on filters using SQLAlchemy ORM.
-    
-    Args:
-        difficulty: Problem difficulty level (Easy, Medium, Hard)
-        company: Company to filter by (searches within companies array)
-    
-    Returns:
-        A random problem matching the filters or error message if none found
-    """
     try:
-        # Validate difficulty if provided
-        valid_difficulties = ["Easy", "Medium", "Hard"]
-        if difficulty and difficulty not in valid_difficulties:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid difficulty. Must be one of: {', '.join(valid_difficulties)}"
-            )
+        # First, let's check what difficulties actually exist in your DB
+        difficulty_check = await db.execute(text("SELECT DISTINCT difficulty FROM problems"))
+        existing_difficulties = [row[0] for row in difficulty_check.fetchall()]
+        logger.info(f"Existing difficulties in DB: {existing_difficulties}")
+        
+        # Use the actual case from your database (capitalize first letter)
+        valid_difficulties = ['Easy', 'Medium', 'Hard']
+        if difficulty:
+            # Capitalize the difficulty to match DB format
+            formatted_difficulty = difficulty.capitalize()
+            if formatted_difficulty not in valid_difficulties:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid difficulty. Must be one of: {', '.join([d.lower() for d in valid_difficulties])}"
+                )
         
         # Build the query using SQLAlchemy ORM
         query = select(Problem)
         
-        # Apply difficulty filter
+        # Apply difficulty filter (exact match with proper capitalization)
         if difficulty:
-            query = query.where(Problem.difficulty == difficulty)
+            formatted_difficulty = difficulty.capitalize()  # easy -> Easy
+            query = query.where(Problem.difficulty == formatted_difficulty)
         
-        # Apply company filter (PostgreSQL array contains)
+        # Apply company filter (PostgreSQL array contains - fixed syntax)
         if company:
-            query = query.where(Problem.companies.any(company))
+            # Use PostgreSQL array contains operator
+            query = query.where(text(f"'{company}' = ANY(companies)"))
         
+        # Apply problem type filter to related_topics array
         if problem_type and problem_type != 'all':
-                query = query.where(Problem.related_topics.any(problem_type))
+            # Map frontend types to database topics
+            topic_mapping = {
+                'arrays-hashing': ['Array', 'Hash Table', 'String', 'Sort'],
+                'two-pointers': ['Two Pointers'],
+                'sliding-window': ['Sliding Window'],
+                'stack': ['Stack', 'Queue'],
+                'binary-search': ['Binary Search'],
+                'linked-list': ['Linked List'],
+                'trees': ['Tree', 'Binary Search Tree', 'Depth-first Search', 'Breadth-first Search'],
+                'tries': ['Trie'],
+                'heap-priority-queue': ['Heap'],
+                'backtracking': ['Backtracking', 'Recursion'],
+                'graphs': ['Graph', 'Union Find'],
+                'advanced-graphs': ['Topological Sort'],
+                '1d-dp': ['Dynamic Programming', 'Memoization'],
+                'greedy': ['Greedy'],
+                'math-geometry': ['Math', 'Geometry'],
+                'bit-manipulation': ['Bit Manipulation'],
+            }
             
+            db_topics = topic_mapping.get(problem_type, [])
+            if db_topics:
+                # Use OR condition for multiple topics
+                topic_conditions = [f"'{topic}' = ANY(related_topics)" for topic in db_topics]
+                query = query.where(text(f"({' OR '.join(topic_conditions)})"))
+            else:
+                # Fallback to direct match
+                query = query.where(text(f"'{problem_type}' = ANY(related_topics)"))
+        
         # Execute the query
         result = await db.execute(query)
         problems = result.scalars().all()
         
         if not problems:
-            # No problems found matching the criteria
             filter_info = []
             if difficulty:
                 filter_info.append(f"difficulty: {difficulty}")
@@ -269,61 +296,79 @@ async def get_random_problem(
             
             filter_str = " and ".join(filter_info) if filter_info else "no filters"
             
-            filter_str = " and ".join(filter_info) if filter_info else "no filters"
-            
             return {
                 "success": False,
                 "message": f"No problems found matching criteria ({filter_str})",
-                "data": None
+                "data": None,
+                "available_difficulties": existing_difficulties
             }
         
         # Select a random problem from the results
         random_problem = random.choice(problems)
-        problem_data = serialize_problem(random_problem)
-
-        # Initialize the interview agent with the selected problem
-        interview_agent.update_problem(problem_data)
         
         return {
             "success": True,
             "message": f"Found {len(problems)} matching problem(s), returning random selection",
-            "data": problem_data,
+            "data": serialize_problem(random_problem),
             "total_matches": len(problems)
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching random problem: {str(e)}", exc_info=True)
+        logger.error(f"Error fetching random problem: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-@app.get("/api/problems/{problem_id}")
-async def get_problem(problem_id: int, db: AsyncSession = Depends(get_db)):
-    """
-    Get a specific problem by ID.
-    """
+# Add endpoint to get filter options with company counts
+@app.get("/api/problems/filters")
+async def get_filter_options(db: AsyncSession = Depends(get_db)):
+    """Get available filter options from the database with company counts"""
     try:
-        result = await db.execute(select(Problem).where(Problem.id == problem_id))
-        problem = result.scalar_one_or_none()
-        problem_data = serialize_problem(problem)
-
-        # Initialize the interview agent with the selected problem
-        interview_agent.update_problem(problem_data)
+        # Get difficulties
+        difficulty_result = await db.execute(
+            text("SELECT DISTINCT difficulty FROM problems WHERE difficulty IS NOT NULL ORDER BY difficulty")
+        )
+        difficulties = [row[0] for row in difficulty_result.fetchall()]
         
-        if not problem:
-            raise HTTPException(status_code=404, detail="Problem not found")
+        # Get companies with counts
+        company_count_query = """
+        SELECT company, COUNT(*) as count 
+        FROM (
+            SELECT unnest(companies) as company 
+            FROM problems 
+            WHERE companies IS NOT NULL
+        ) as company_list
+        GROUP BY company
+        HAVING COUNT(*) >= 10
+        ORDER BY count DESC, company
+        """
+        
+        company_result = await db.execute(text(company_count_query))
+        company_counts = [{"company": row[0], "count": row[1]} for row in company_result.fetchall()]
+        
+        # Also keep a simple company list for compatibility
+        companies = [cc["company"] for cc in company_counts]
+        
+        # Get topics
+        topic_result = await db.execute(
+            text("SELECT DISTINCT unnest(related_topics) as topic FROM problems WHERE related_topics IS NOT NULL ORDER BY topic")
+        )
+        topics = [row[0] for row in topic_result.fetchall()]
         
         return {
             "success": True,
-            "data": problem_data
+            "data": {
+                "difficulties": difficulties,
+                "companies": companies,
+                "companyCounts": company_counts,
+                "topics": topics
+            }
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error fetching problem {problem_id}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
+        logger.error(f"Error fetching filter options: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+    
 @app.get("/api/problems")
 async def get_problems(
     skip: int = Query(0, ge=0, description="Number of problems to skip"),
