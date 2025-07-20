@@ -43,6 +43,12 @@ export const useInterview = (initialCode: string = '') => {
   // Sync messages from the speech hook to the main interview state
   useEffect(() => {
     if (speechHookMessages.length !== state.conversation.length) {
+      console.log('Syncing messages:', { 
+        speechHookMessages, 
+        currentLength: state.conversation.length,
+        newMessages: speechHookMessages.length
+      });
+      
       setState(prev => ({
         ...prev,
         conversation: speechHookMessages

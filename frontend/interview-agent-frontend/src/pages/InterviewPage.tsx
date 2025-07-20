@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import CodeEditor from '@/components/interview/CodeEditor';
 import Timer from '@/components/Timer';
 import { useInterview } from '@/hooks/useInterview';
-import type { Problem, ConversationMessage } from '../types/interview';
+// We're not using useContinuousSpeech directly, we're using it via useInterview
+import type { Problem } from '@/types/interview';
 
 interface LocationState {
   problem: Problem;
@@ -18,13 +19,15 @@ const InterviewPage = () => {
   const navigate = useNavigate();
   const { problem, settings } = (location.state as LocationState) || {};
 
+  const [hasStartedInterview, setHasStartedInterview] = useState(false);
+
   const { 
     state, 
     startInterview,
     endInterview,
     updateCode,
     sendTextMessage,
-    isSpeechSupported,
+    isSpeechSupported: speechSupported,
     isListening,
     isConnected,
     currentTranscript,
@@ -42,12 +45,18 @@ const InterviewPage = () => {
     }
   }, [problem, navigate]);
 
-  // Automatically start the interview when the component mounts with a problem
+  // Manually start the interview
+  const handleStartInterview = useCallback(() => {
+    setHasStartedInterview(true);
+    startInterview(problem, settings);
+  }, [startInterview, problem, settings]);
+  
+  // Auto-start the interview if user refreshes after starting
   useEffect(() => {
-    if (problem && !state.hasStarted) {
-      startInterview(problem, settings);
+    if (problem && state.hasStarted && !hasStartedInterview) {
+      setHasStartedInterview(true);
     }
-  }, [problem, settings, state.hasStarted, startInterview]);
+  }, [problem, state.hasStarted, hasStartedInterview]);
 
   // Scroll to the bottom of the chat when new messages are added
   useEffect(() => {
@@ -114,10 +123,119 @@ const InterviewPage = () => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (!problem || !state.hasStarted) {
+  if (!problem) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-white text-xl">Preparing your interview...</div>
+      </div>
+    );
+  }
+  
+  if (!hasStartedInterview) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+        {/* Header */}
+        <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-sm sticky top-0 z-20">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h1 className="text-lg font-bold text-white">{problem.title}</h1>
+                <Badge className={getDifficultyColor(problem.difficulty)}>
+                  {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-xs">
+                  <span className="text-slate-400 mr-2">Time limit:</span>
+                  <span>{settings?.timeLimit || 45} minutes</span>
+                </div>
+                <div className="text-xs">
+                  <span className="text-slate-400 mr-2">Voice support:</span>
+                  <span>{speechSupported ? 'Available' : 'Unavailable (Switch to Chrome for voice support)'}</span>
+                </div>
+      
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content - Problem Description */}
+        <main className="container mx-auto px-4 py-4 flex-1 overflow-auto">
+          <Card className="bg-slate-900/50 border-slate-800 max-w-4xl mx-auto">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl text-white">Problem Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed space-y-4">
+                {/* Main description */}
+                <div className="text-sm">
+                  {problem.description.split(/(`[^`]+`)/).map((part, index) => {
+                    if (part.startsWith('`') && part.endsWith('`')) {
+                      return (
+                        <code key={index} className="bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono">
+                          {part.slice(1, -1)}
+                        </code>
+                      );
+                    }
+                    return <span key={index}>{part}</span>;
+                  })}
+                </div>
+                
+                {/* Examples */}
+                {problem.examples && problem.examples.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-white font-semibold mb-3 text-sm">Examples:</h4>
+                    <div className="space-y-3">
+                      {problem.examples.map((example, index) => (
+                        <div key={index} className="bg-slate-950/50 p-3 rounded-lg">
+                          <pre className="text-xs text-slate-300 whitespace-pre-wrap">
+                            {example}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Constraints */}
+                {problem.constraints && problem.constraints.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-white font-semibold mb-3 text-sm">Constraints:</h4>
+                    <ul className="text-slate-300 text-xs space-y-1">
+                      {problem.constraints.map((constraint, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-slate-500 mt-1">•</span>
+                          <span>
+                            {constraint.split(/(`[^`]+`)/).map((part, partIndex) => {
+                              if (part.startsWith('`') && part.endsWith('`')) {
+                                return (
+                                  <code key={partIndex} className="bg-slate-800 text-blue-300 px-1 py-0.5 rounded text-xs font-mono">
+                                    {part.slice(1, -1)}
+                                  </code>
+                                );
+                              }
+                              return <span key={partIndex}>{part}</span>;
+                            })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="bg-blue-900/20 border border-blue-800/30 text-blue-300 p-3 rounded-lg text-sm mt-6">
+                  <p>Once you start, the timer will begin and you'll be connected with your AI interviewer. Good luck!</p>
+                </div>
+                
+                <div className="flex justify-center pt-4">
+                  <Button onClick={handleStartInterview} size="lg" className="bg-purple-600 hover:bg-purple-700 text-white">
+                    Start Interview
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     );
   }
@@ -224,36 +342,113 @@ const InterviewPage = () => {
           </div>
 
           {/* Right Panel - Chat */}
-          <div className={`transition-all duration-300 ${isChatCollapsed ? 'w-12' : 'w-1/3'} flex flex-col gap-4 relative`}>
-            <Button onClick={() => setIsChatCollapsed(!isChatCollapsed)} variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-slate-800 border-slate-600 hover:bg-slate-700 w-8 h-8">
-              {isChatCollapsed ? '‹' : '›'}
+          <div className={`transition-all duration-300 ${
+            isChatCollapsed ? 'w-12' : 'w-1/3'
+          } flex flex-col gap-4 relative`}>
+            
+            {/* Collapse Toggle Button */}
+            <Button
+              onClick={() => setIsChatCollapsed(!isChatCollapsed)}
+              variant="outline"
+              size="sm"
+              className={`absolute top-0 ${
+                isChatCollapsed ? 'left-2' : 'right-2'
+              } z-10 bg-slate-800 border-slate-600 text-white hover:bg-slate-700 w-8 h-8 p-0`}
+            >
+              <svg 
+                className={`w-4 h-4 transition-transform ${isChatCollapsed ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Button>
+
             {!isChatCollapsed && (
-              <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col min-h-0">
-                <CardHeader className="pb-3"><CardTitle className="text-base text-white">Interview Chat</CardTitle></CardHeader>
-                <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden">
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                    {state.conversation.map((msg: ConversationMessage) => (
-                      <div key={msg.id} className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
-                        <div className={`flex flex-col max-w-xs md:max-w-md ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                          <div className={`px-3 py-2 rounded-xl ${msg.sender === 'user' ? 'bg-blue-600 rounded-br-none' : 'bg-slate-800 rounded-bl-none'}`}>
-                            <p className="text-sm">{msg.message}</p>
-                          </div>
-                          <span className="text-xs text-slate-500 mt-1">{formatTime(msg.timestamp)} {msg.source === 'speech' && '🎤'}</span>
-                        </div>
+              <>
+                {/* Chat History */}
+                <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base text-white flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold">AI</span>
                       </div>
-                    ))}
-                    {currentTranscript && (
-                      <div className="text-sm text-blue-300 italic p-2">"{currentTranscript}"</div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
-                  <div className="flex gap-2 pt-2 border-t border-slate-800">
-                    <input type="text" value={textInput} onChange={(e) => setTextInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Type a message..." className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-purple-500 focus:outline-none" />
-                    <Button onClick={handleSendMessage} disabled={!textInput.trim() || !isConnected} className="bg-purple-600 hover:bg-purple-700">Send</Button>
-                  </div>
-                </CardContent>
-              </Card>
+                      Interview Chat
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col">
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto space-y-3 mb-3" ref={chatEndRef}>
+
+                      {/* Current transcript preview */}
+                      {currentTranscript && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
+                          <div className="text-xs text-blue-300 italic">
+                            Speaking: "{currentTranscript}"
+                          </div>
+                        </div>
+                      )}
+
+                      {/* All messages */}
+                      {state.conversation.map((message) => (
+                        <div key={message.id} className="flex gap-2">
+                          <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center ${
+                            message.sender === 'ai' 
+                              ? 'bg-gradient-to-r from-purple-600 to-blue-600' 
+                              : 'bg-slate-700'
+                          }`}>
+                            <span className="text-xs font-bold">
+                              {message.sender === 'ai' ? 'AI' : 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-300">{message.message}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-slate-500">
+                                {formatTime(message.timestamp)}
+                              </span>
+                              {message.source === 'speech' && (
+                                <span className="text-xs text-blue-400">🎤</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-slate-950/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!textInput.trim() || !isConnected}
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {isChatCollapsed && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-slate-400 text-sm font-medium transform rotate-90 whitespace-nowrap">
+                  Interview Chat
+                </div>
+              </div>
             )}
           </div>
         </div>
