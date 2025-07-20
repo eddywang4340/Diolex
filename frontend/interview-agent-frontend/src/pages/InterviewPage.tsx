@@ -75,10 +75,10 @@ const InterviewPage = () => {
     updateCode(code); // Update the state immediately
     // In a real scenario, you would call an API to execute the code.
     // For now, we just notify the AI.
-    setTimeout(() => {
-      // Use timeout to ensure code state is updated before sending message
-      sendTextMessage(`I'm running my code to test it.`);
-    }, 100);
+    // setTimeout(() => {
+    //   // Use timeout to ensure code state is updated before sending message
+    //   sendTextMessage(`I'm running my code to test it.`);
+    // }, 100);
     return 'Code execution simulation complete.';
   }, [updateCode, sendTextMessage]);
 
@@ -86,9 +86,9 @@ const InterviewPage = () => {
     console.log('Submitting code, length:', code.length);
     updateCode(code);
     // Small delay to ensure the state is updated before sending message
-    setTimeout(() => {
-      sendTextMessage(`I'm submitting my final solution. Please review it.`);
-    }, 100);
+    // setTimeout(() => {
+    //   sendTextMessage(`I'm submitting my final solution. Please review it.`);
+    // }, 100);
     // You might want to trigger the end of the interview here or after a final AI response.
   }, [updateCode, sendTextMessage]);
 
