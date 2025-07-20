@@ -51,18 +51,10 @@ export const useInterview = (initialCode: string = '') => {
       
       setState(prev => ({
         ...prev,
-        conversation: speechHookMessages
-          .filter(msg => 
-            msg.type === 'question' ||
-            msg.type === 'hint' ||
-            msg.type === 'clarification' ||
-            msg.type === 'feedback' ||
-            msg.type === undefined
-          )
-          .map(msg => ({
-            ...msg,
-            type: msg.type === 'response' ? undefined : msg.type
-          })) as ConversationMessage[],
+        conversation: speechHookMessages.map(msg => ({
+          ...msg,
+          type: msg.type === 'response' ? undefined : msg.type
+        })) as ConversationMessage[],
       }));
     }
   }, [speechHookMessages, state.conversation.length]);

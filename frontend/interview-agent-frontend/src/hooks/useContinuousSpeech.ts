@@ -71,10 +71,11 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
 
     try {
       const wsUrl = `ws://localhost:8000/ws/${clientId.current}`;
+      console.log('Connecting to WebSocket at:', wsUrl);
       websocketRef.current = new WebSocket(wsUrl);
 
       websocketRef.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected successfully');
         setIsConnected(true);
         setError(null);
         
@@ -83,6 +84,13 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
         }
+        
+        // Send an initial message to test connection
+        setTimeout(() => {
+          if (websocketRef.current?.readyState === WebSocket.OPEN) {
+            websocketRef.current.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 1000);
       };
 
       websocketRef.current.onmessage = (event) => {

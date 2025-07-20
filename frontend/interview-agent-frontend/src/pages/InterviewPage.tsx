@@ -411,6 +411,9 @@ const InterviewPage = () => {
                               {message.source === 'speech' && (
                                 <span className="text-xs text-blue-400">🎤</span>
                               )}
+                              {message.type && (
+                                <span className="text-xs text-purple-400">{message.type}</span>
+                              )}
                             </div>
                           </div>
                         </div>
