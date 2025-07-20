@@ -344,7 +344,7 @@ const InterviewPage = () => {
           {/* Right Panel - Chat */}
           <div className={`transition-all duration-300 ${
             isChatCollapsed ? 'w-12' : 'w-1/3'
-          } flex flex-col gap-4 relative`}>
+          } flex flex-col gap-4 relative h-full`}>
             
             {/* Collapse Toggle Button */}
             <Button
@@ -368,7 +368,7 @@ const InterviewPage = () => {
             {!isChatCollapsed && (
               <>
                 {/* Chat History */}
-                <Card className="bg-slate-900/50 border-slate-800 flex-1 flex flex-col">
+                <Card className="bg-slate-900/50 border-slate-800 flex flex-col h-[600px]">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base text-white flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
@@ -377,9 +377,9 @@ const InterviewPage = () => {
                       Interview Chat
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex-1 flex flex-col">
+                  <CardContent className="flex flex-col flex-1 overflow-hidden">
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto space-y-3 mb-3" ref={chatEndRef}>
+                    <div className="flex-1 overflow-y-auto space-y-3 mb-3 min-h-0">
 
                       {/* Current transcript preview */}
                       {currentTranscript && (
@@ -403,7 +403,7 @@ const InterviewPage = () => {
                             </span>
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm text-slate-300">{message.message}</p>
+                            <p className="text-sm text-slate-300 break-words">{message.message}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-slate-500">
                                 {formatTime(message.timestamp)}
@@ -418,6 +418,7 @@ const InterviewPage = () => {
                           </div>
                         </div>
                       ))}
+                      <div ref={chatEndRef}/>
                     </div>
 
                     {/* Message Input */}
