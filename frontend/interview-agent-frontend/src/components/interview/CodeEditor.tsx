@@ -240,7 +240,7 @@ const CodeEditor = ({
                 autocompletion: true,
               }}
               className="text-sm"
-              height="400px"
+              height="calc(100vh - 300px)"
             />
 
             <div className="absolute bottom-4 right-4 flex gap-2">
