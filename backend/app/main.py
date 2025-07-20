@@ -38,7 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global instances
+# Global interview agent - will be reinitialized with each new problem
 interview_agent = InterviewAgent()
 
 @app.on_event("startup")
@@ -279,11 +279,15 @@ async def get_random_problem(
         
         # Select a random problem from the results
         random_problem = random.choice(problems)
+        problem_data = serialize_problem(random_problem)
+
+        # Initialize the interview agent with the selected problem
+        interview_agent.update_problem(problem_data)
         
         return {
             "success": True,
             "message": f"Found {len(problems)} matching problem(s), returning random selection",
-            "data": serialize_problem(random_problem),
+            "data": problem_data,
             "total_matches": len(problems)
         }
         
@@ -301,13 +305,17 @@ async def get_problem(problem_id: int, db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Problem).where(Problem.id == problem_id))
         problem = result.scalar_one_or_none()
+        problem_data = serialize_problem(problem)
+
+        # Initialize the interview agent with the selected problem
+        interview_agent.update_problem(problem_data)
         
         if not problem:
             raise HTTPException(status_code=404, detail="Problem not found")
         
         return {
             "success": True,
-            "data": serialize_problem(problem)
+            "data": problem_data
         }
         
     except HTTPException:

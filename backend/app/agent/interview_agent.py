@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import google.genai as genai
 from google.genai import types
 from google.genai.types import GenerateContentConfig
-from .prompt import interview_system_prompt
+from prompt import interview_system_prompt
 
 load_dotenv()
 
@@ -14,7 +14,7 @@ class InterviewAgent:
     A stateful interview prep agent using Gemini that can incorporate user's current code.
     """
     
-    def __init__(self, question: str = None):
+    def __init__(self, problem_data: dict = None, question: str = None):
         """
         Initialize the interview prep agent.
         
@@ -25,47 +25,122 @@ class InterviewAgent:
         
         # Store user code context
         self.user_code = "No code provided yet."
+
+        # Store problem
+        self.problem_description = "No problem provided"
+        
+        # Manual history tracking
+        self.history = []
+
+        # Store problem
+        self.problem_description = "No problem provided"
         
         self.client = genai.Client()
         
         # Create dynamic system instruction with user code context
-        self.system_instruction = interview_system_prompt.format(user_code_context=self.user_code)
+        self.system_instruction = interview_system_prompt.format(user_code_context=self.user_code, problem=self.problem_description)
         
         self.api_key = os.getenv("GEMINI_API_KEY")
         
         # Initialize the generative model
         self.chat_session = self.client.chats.create(
             model='gemini-2.5-flash',  # Using a standard, available model
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_instruction
+            )
+        )
+    
+    def update_problem(self, problem_data: dict):
+        """
+        Update the problem data and regenerate the system instruction.
+        
+        Args:
+            problem_data (dict): New problem data from the API
+        """
+        self.problem_description = problem_data.get('description', 'No problem provided')
+        
+        # Regenerate system instruction with new problem
+        self.system_instruction = interview_system_prompt.format(
+            user_code_context=self.user_code, 
+            problem=self.problem_description
+        )
+    
+    def update_problem(self, problem_data: dict):
+        """
+        Update the problem data and regenerate the system instruction.
+        
+        Args:
+            problem_data (dict): New problem data from the API
+        """
+        self.problem_description = problem_data.get('description', 'No problem provided')
+        
+        # Regenerate system instruction with new problem
+        self.system_instruction = interview_system_prompt.format(
+            user_code_context=self.user_code, 
+            problem=self.problem_description
         )
         
-        
-    def send_message(self, message: str) -> str:
+    def send_message(self, message: str, user_code) -> str:
         """
         Send a message to the Gemini model and return the response.
+        Also manually tracks the conversation in self.history.
         """
         try:
-            # The model will automatically handle sending the history.
-            full_message = f"{message}\n\nUser Code Context:\n{self.user_code}"
-            response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=self.system_instruction + "\n\n" + full_message)
+            # Add user message to manual history
+            self.history.append({
+                "role": "user",
+                "content": message,
+                "user_code": user_code,
+            })
+            
+            
+            # Use the chat session to send messages and maintain history
+            full_message = f"{message}\n\nUser Code Context:\n{user_code}"
+            print(user_code)
+            response = self.chat_session.send_message(full_message)
+            
+            self.user_code = user_code  # Update user code context
+            
+            # Add AI response to manual history
+            self.history.append({
+                "role": "assistant",
+                "content": response.text,
+            })
+            
             return response.text
+        
         except Exception as e:
-            return f"An error occurred: {e}"
+            error_message = f"An error occurred: {e}"
+            # Also add error to history for tracking
+            self.history.append({
+                "role": "system",
+                "content": error_message,
+                "timestamp": self._get_timestamp()
+            })
+            return error_message
+    
+    def _get_timestamp(self):
+        """Helper method to get current timestamp for history entries."""
+        from datetime import datetime
+        return datetime.now().isoformat()
+    
+    def clear_history(self):
+        self.history.clear()
+    
+    # def add_system_message(self, message: str):
+
+    #     self.history.append({
+    #         "role": "system",
+    #         "content": message,
+    #         "timestamp": self._get_timestamp()
+    #     })
+
+    def get_last_n_messages(self, n: int) -> list:
+        """Get the last n messages from manual history."""
+        return self.history[-n:] if n <= len(self.history) else self.history.copy()
     
     def get_chat_history(self) -> list:
-        """
-        Get the current chat history in a simple format.
-        
-        Returns:
-            list: List of chat messages as dictionaries.
-        """
-        if hasattr(self.chat_session, 'history'):
-            return [
-                {"role": msg.role, "content": msg.parts[0].text.strip()}
-                for msg in self.chat_session.history
-            ]
-        return []
+        return self.history.copy()  # Return a copy to prevent external modification
     
     def start_interactive_session(self):
         while True:
@@ -82,84 +157,49 @@ class InterviewAgent:
                 self.print_formatted_history()
                 continue
                 
-            # Command to print raw Gemini history
-            if user_query.lower() == "/debug-history":
-                self.print_gemini_history()
+            # Command to clear manual history
+            if user_query.lower() == "/clear-history":
+                self.clear_history()
                 continue
             
             # Send the user's query to the model and get the response
-            response = self.send_message(message=self.system_instruction + "\n\n" + user_query,
-                                         user_code=self.user_code)
+            response = self.send_message(user_query, "hi")
             print(f"🤖 Ace: {response}")
     
     def get_formatted_history(self):
         """
-        Build and return the formatted chat history string (FeedbackAgent style).
-        Returns an empty string if no usable messages.
+        Build and return the formatted chat history string using manual history.
+        Returns an empty string if no messages.
         """
-        if not hasattr(self.chat_session, "history") or not self.chat_session.history:
+        if not self.history:
             return ""
 
         out = []
-        for content in self.chat_session.history:
-            role = getattr(content, "role", "UNKNOWN").upper()
-            parts = getattr(content, "parts", [])
-            if not parts:
-                continue
-            buf = []
-            for part in parts:
-                txt = getattr(part, "text", None)
-                if txt:
-                    buf.append(txt)
-            joined = "".join(buf).strip()
-            if joined:
-                out.append(f"{role}: {joined}")
+        for msg in self.history:
+            role = msg["role"].upper()
+            content = msg["content"].strip()
+            if content:
+            # Include user code context for user messages
+                if role == "USER" and "user_code" in msg:
+                    user_code = msg["user_code"].strip()
+                    if user_code and user_code != "No code provided yet.":
+                        out.append(f"{role}: {content}\n\nUser Code Context:\n{user_code}")
+                    else:
+                        out.append(f"{role}: {content}")
+                else:
+                    out.append(f"{role}: {content}")
+                    
         return "\n\n".join(out)
     
     def print_formatted_history(self, mode="formatted", truncate=200):
-        """
-        Print chat history.
-        
-        mode:
-        - "formatted": prints the FeedbackAgent-formatted history.
-        - "raw": prints message-by-message with parts (like old print_gemini_history).
-        truncate: number of characters to show per part in raw mode (None for no truncation).
-        """
-        if not hasattr(self.chat_session, "history") or not self.chat_session.history:
-            print("📝 No chat history available.")
-            return
-        
-        print("\n" + "="*60)
-        if mode == "raw":
-            print("📝 GEMINI CHAT HISTORY (raw)")
-            print("="*60)
-            for i, content in enumerate(self.chat_session.history, 1):
-                print(f"\n--- Message {i} ---")
-                print(f"Role: {getattr(content, 'role', 'UNKNOWN')}")
-                parts = getattr(content, "parts", [])
-                if not parts:
-                    print("No parts found in this message")
-                    continue
-                for j, part in enumerate(parts, 1):
-                    txt = getattr(part, "text", None)
-                    if txt is not None:
-                        display = txt
-                        if truncate is not None and len(display) > truncate:
-                            display = display[:truncate] + "..."
-                        print(f"Part {j}: {display}")
-                    else:
-                        print(f"Part {j}: {type(part)} (non-text part)")
+        print("="*60)
+        formatted = self.get_formatted_history()
+        if formatted:
+            print(formatted)
         else:
-            print("📝 FORMATTED CHAT HISTORY (as sent to FeedbackAgent)")
-            print("="*60)
-            formatted = self.get_formatted_history()
-            if formatted:
-                print(formatted)
-            else:
-                print("(No usable text messages.)")
+            print("(No usable messages.)")
         print("\n" + "="*60)
 
-        
 
 # --- Main Execution ---
 if __name__ == "__main__":
