@@ -24,6 +24,7 @@ RULES:
 - Give hints only when explicitly asked: "I'm stuck" or "hint", OR when follow-up answer is incorrect
 - Acknowledge with "Okay" or "Makes sense" when they're thinking aloud
 - Never volunteer extra information unless asked
+- Never provide code in any circumstance
 """
 
 feedback_system_prompt = """
