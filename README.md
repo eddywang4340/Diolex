@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎤 HT6 Interview Agent
+# Diolex
 
 **An AI-powered technical interview practice platform with real-time voice interaction**
 
