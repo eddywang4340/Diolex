@@ -252,6 +252,22 @@ async def get_random_problem(
     problem_type: Optional[str] = Query(None, description="Filter by problem type"),
     db: AsyncSession = Depends(get_db)
 ):
+    
+    # HARDCODED FOR DEMO - Two Sum problem
+    hardcoded_two_sum = {
+        "id": 1,
+        "title": "Two Sum",
+        "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.\n\nExample 1:\nInput: nums = [2,7,11,15], target = 9\nOutput: [0,1]\nExplanation: Because nums[0] + nums[1] == 9, we return [0, 1].\n\nExample 2:\nInput: nums = [3,2,4], target = 6\nOutput: [1,2]\n\nExample 3:\nInput: nums = [3,3], target = 6\nOutput: [0,1]\n\nConstraints:\n2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9\nOnly one valid answer exists.",
+        "is_premium": False,
+        "difficulty": "Easy",
+        "solution_link": None,
+        "url": "https://leetcode.com/problems/two-sum/",
+        "companies": ["Amazon", "Google", "Microsoft", "Apple", "Facebook"],
+        "related_topics": ["Array", "Hash Table"],
+        "similar_questions": "3Sum, 4Sum"
+    }
+
+
     try:
         # First, let's check what difficulties actually exist in your DB
         difficulty_check = await db.execute(text("SELECT DISTINCT difficulty FROM problems"))
@@ -340,12 +356,12 @@ async def get_random_problem(
         problem_data = serialize_problem(random_problem)
 
         # Initialize the interview agent with the selected problem
-        interview_agent.update_problem(problem_data)
+        interview_agent.update_problem(hardcoded_two_sum)
         
         return {
             "success": True,
             "message": f"Found {len(problems)} matching problem(s), returning random selection",
-            "data": serialize_problem(random_problem),
+            "data": hardcoded_two_sum,
             "total_matches": len(problems)
         }
         
