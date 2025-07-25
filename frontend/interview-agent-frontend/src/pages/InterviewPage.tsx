@@ -9,6 +9,8 @@ import { useInterview } from '@/hooks/useInterview';
 // We're not using useContinuousSpeech directly, we're using it via useInterview
 import type { Problem } from '@/types/interview';
 
+const API_URL = 'http://localhost:8000';
+
 interface LocationState {
   problem: Problem;
   settings: any;
@@ -101,7 +103,7 @@ const InterviewPage = () => {
       endInterview();
       
       // Call the /end endpoint to get AI feedback
-      const response = await fetch('http://localhost:8000/end', {
+      const response = await fetch(`${API_URL}/api/interview/end`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
