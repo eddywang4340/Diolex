@@ -52,6 +52,11 @@ class InterviewAgent:
         Also manually tracks the conversation in self.history.
         """
         try:
+            # Ensure chat session exists
+            if self.chat_session is None:
+                # Initialize with default problem if not already done
+                self.update_problem({"description": "No problem provided yet"})
+                
             # Build context with chat history (don't add current message to history yet)
             context_parts = []
             
