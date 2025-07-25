@@ -1,11 +1,13 @@
 # backend/app/main.py - Main application entry point
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from app.api.router import api_router
 from app.agent.tts_service import initialize_tts
+from app.websockets.ws import websocket_endpoint
+from app.api.v1.interview import end_interview
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +33,11 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router)
+
+# WebSocket endpoint
+@app.websocket("/ws/{client_id}")
+async def websocket_route(websocket: WebSocket, client_id: str):
+    await websocket_endpoint(websocket, client_id)
 
 @app.on_event("startup")
 async def startup_event():

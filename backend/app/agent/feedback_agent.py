@@ -16,6 +16,8 @@ class FeedbackScore(BaseModel):
     total: int
     recommendation: Literal["Strong Hire", "Hire", "No Hire", "Strong No Hire"]
     explanation: str
+    strengths: list[str] | None = None
+    improvements: list[str] | None = None
 
 
 class FeedbackAgent:

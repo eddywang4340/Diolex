@@ -25,10 +25,10 @@ const ResultsPage = () => {
         score: Math.round((aiFeedback.total / 15) * 100), // Convert 0-15 scale to 0-100 percentage
         recommendation: aiFeedback.recommendation,
         explanation: aiFeedback.explanation,
-        // For compatibility with existing UI
         overallFeedback: aiFeedback.explanation,
-        // strengths: ["Solution correctness achieved"],
-        // improvements: ["Focus on communication and clarification skills"],
+        strengths: aiFeedback.strengths || [],
+        improvements: aiFeedback.improvements || [],
+
         codeQuality: "Code reviewed by AI"
       };
       
@@ -298,46 +298,46 @@ const ResultsPage = () => {
             {/* Summary Tab */}
             {activeTab === 'summary' && (
               <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-white mb-3">Overall Assessment</h3>
+                <p className="text-slate-300 leading-relaxed">
+                {evaluation?.overallFeedback || evaluation?.explanation || 'No assessment available'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-lg font-medium text-white mb-3">Overall Assessment</h3>
-                  <p className="text-slate-300 leading-relaxed">
-                    {evaluation?.overallFeedback || 'No assessment available'}
-                  </p>
+                <h3 className="text-lg font-medium text-white mb-3">Strengths</h3>
+                <ul className="space-y-2">
+                  {aiFeedback?.strengths?.length > 0 ? aiFeedback.strengths.map((strength, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <div className="mt-1 text-green-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    </div>
+                    <span className="text-slate-300">{strength}</span>
+                  </li>
+                  )) : <li className="text-slate-400">No strengths listed</li>}
+                </ul>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-3">Strengths</h3>
-                    <ul className="space-y-2">
-                      {evaluation?.strengths?.map((strength, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="mt-1 text-green-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <span className="text-slate-300">{strength}</span>
-                        </li>
-                      )) || <li className="text-slate-400">No strengths listed</li>}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-3">Areas to Improve</h3>
-                    <ul className="space-y-2">
-                      {evaluation?.improvements?.map((improvement, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <div className="mt-1 text-amber-500">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                          </div>
-                          <span className="text-slate-300">{improvement}</span>
-                        </li>
-                      )) || <li className="text-slate-400">No improvements listed</li>}
-                    </ul>
-                  </div>
+                <div>
+                <h3 className="text-lg font-medium text-white mb-3">Areas to Improve</h3>
+                <ul className="space-y-2">
+                  {aiFeedback?.improvements?.length > 0 ? aiFeedback.improvements.map((improvement, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <div className="mt-1 text-amber-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    </div>
+                    <span className="text-slate-300">{improvement}</span>
+                  </li>
+                  )) : <li className="text-slate-400">No improvements listed</li>}
+                </ul>
                 </div>
+              </div>
               </div>
             )}
 
