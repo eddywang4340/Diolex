@@ -10,7 +10,10 @@ engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,  # Set to True to see SQL queries
     future=True,
-    poolclass=NullPool,  # Disable connection pooling for serverless environments
+    pool_size=20,
+    max_overflow=30,
+    pool_pre_ping=True,
+    pool_recycle=3600
 )
 
 # Create async session factory
@@ -30,7 +33,6 @@ async def get_db():
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

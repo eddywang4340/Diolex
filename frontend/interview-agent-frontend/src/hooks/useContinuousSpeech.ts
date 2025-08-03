@@ -271,7 +271,7 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
               console.log('Could not restart recognition:', e);
             }
           }
-        }, 1000);
+        }, 250);
       }
     };
 
@@ -279,15 +279,20 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
       console.log('Speech recognition ended');
       setIsListening(false);
       
-      // Auto-restart if interview is still active
+      // immediate restart instead of 100ms delay
       if (interviewStarted && isConnected) {
-        setTimeout(() => {
-          try {
-            recognition.start();
-          } catch (e) {
-            console.log('Could not restart recognition:', e);
-          }
-        }, 100);
+        try {
+          recognition.start(); // No setTimeout delay!
+        } catch (e) {
+          // Only delay on actual errors
+          setTimeout(() => {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.log('Could not restart recognition:', e);
+            }
+          }, 50); // Reduced from 100ms to 50ms
+        }
       }
     };
 
@@ -298,10 +303,28 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
     };
   }, [isSupported, sendMessage, interviewStarted, isConnected]);
 
+  // function to reduce processing time
+  const optimizeAudioInput = useCallback(() => {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000, // Lower sample rate for faster processing
+        } 
+      });
+    }
+  }, []);
+
+
   // Start interview - connects WebSocket and starts speech
   const startInterview = useCallback(() => {
     setInterviewStarted(true);
     setError(null);
+
+    // Optimize audio first
+    optimizeAudioInput();
     
     // Connect WebSocket
     connect();
@@ -316,7 +339,7 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
           setError('Failed to start speech recognition');
         }
       }
-    }, 1000); // Give WebSocket time to connect
+    }, 500); // Give WebSocket time to connect
   }, [isSupported, connect]);
 
   // End interview - stops everything
