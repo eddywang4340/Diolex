@@ -180,7 +180,7 @@ def _play_audio_thread(text: str, voice: str):
                 break
             
             logger.debug(f"Playing audio chunk {i}: gs={gs}, ps={ps}")
-            sd.play(audio, 24000)
+            sd.play(audio, 26000)
             
             # Wait for this chunk to finish, but check for stop event periodically
             stream_active = True

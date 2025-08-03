@@ -186,7 +186,7 @@ async def handle_speech_message(message_data: dict, client_id: str):
         await manager.send_personal_message(user_message, client_id)
         
         # Simulate AI processing delay
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.6)
         
         # Generate AI response
         ai_response = interview_agent.send_message_agent(user_message["message"], user_code=code_context)
