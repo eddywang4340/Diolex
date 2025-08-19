@@ -271,7 +271,7 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
               console.log('Could not restart recognition:', e);
             }
           }
-        }, 250);
+        }, 500);
       }
     };
 
@@ -279,20 +279,15 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
       console.log('Speech recognition ended');
       setIsListening(false);
       
-      // immediate restart instead of 100ms delay
+      // Auto-restart if interview is still active
       if (interviewStarted && isConnected) {
-        try {
-          recognition.start(); // No setTimeout delay!
-        } catch (e) {
-          // Only delay on actual errors
-          setTimeout(() => {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.log('Could not restart recognition:', e);
-            }
-          }, 50); // Reduced from 100ms to 50ms
-        }
+        setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.log('Could not restart recognition:', e);
+          }
+        }, 100);
       }
     };
 
@@ -304,27 +299,43 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
   }, [isSupported, sendMessage, interviewStarted, isConnected]);
 
   // function to reduce processing time
-  const optimizeAudioInput = useCallback(() => {
+  const optimizeAudioInput = useCallback(async () => {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000, // Lower sample rate for faster processing
-        } 
-      });
+      try {
+        // Actually request and establish audio stream
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 16000, // Lower sample rate for faster processing
+          } 
+        });
+        
+        // Important: Close the stream after confirming permissions
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+      } catch (error) {
+        console.error('Failed to optimize audio input:', error);
+        setError('Microphone access denied or unavailable');
+        return false;
+      }
     }
+    return false;
   }, []);
 
 
   // Start interview - connects WebSocket and starts speech
-  const startInterview = useCallback(() => {
+  const startInterview = useCallback(async () => {
     setInterviewStarted(true);
     setError(null);
 
-    // Optimize audio first
-    optimizeAudioInput();
+    // // Optimize audio first and wait for permissions
+    // const audioReady = await optimizeAudioInput();
+    // if (!audioReady) {
+    //   setInterviewStarted(false);
+    //   return;
+    // }
     
     // Connect WebSocket
     connect();
@@ -339,7 +350,7 @@ export const useContinuousSpeech = (props?: UseContinuousSpeechProps): UseContin
           setError('Failed to start speech recognition');
         }
       }
-    }, 500); // Give WebSocket time to connect
+    }, 1000); // Give WebSocket time to connect
   }, [isSupported, connect]);
 
   // End interview - stops everything
